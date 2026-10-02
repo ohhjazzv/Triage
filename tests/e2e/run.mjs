@@ -81,7 +81,8 @@ async function setupExam(page, { chapters = 'Light (7 marks)\nElectricity (8 mar
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByLabel('Chapter list').fill(chapters);
   await page.getByRole('button', { name: 'Next' }).click();
-  for (const a of answers) await page.locator('.answer', { hasText: a }).first().click();
+  const count = chapters.split('\n').filter(Boolean).length;
+  for (let i = 0; i < count; i++) await page.locator('.answer', { hasText: answers[i % answers.length] }).first().click();
   await page.locator('.summary').waitFor();
   await page.getByRole('button', { name: 'Show my plan' }).click();
   await page.locator('.plan h1').waitFor();
@@ -107,7 +108,7 @@ await test('sample: the plan appears with the numbers in the README', async ({ p
   expect((await text(page, '.time-line')).includes('8 blocks'), 'expected 8 blocks: ' + await text(page, '.time-line'));
   expect(await page.locator('.map .tag.on').count() === 5, 'expected 5 chapters tonight');
   const skipped = await page.locator('h2:text("Not tonight") + ul .row-name').allInnerTexts();
-  expect(skipped.join('|') === 'Cell structure|Cell division|Human body systems', 'skip list was ' + skipped.join('|'));
+  expect(skipped.join('|') === 'Cell division|Human body systems|Cell structure', 'skip list was ' + skipped.join('|'));   // closest misses first
   const legend = (await text(page, '.legend')).replace(/\s+/g, ' ');
   expect(legend.includes('19') && legend.includes('+10') && legend.includes('21'), 'legend was ' + legend);
   await shot(page, 'plan-phone'); await shot(page, 'plan-phone-full', true);
@@ -328,6 +329,75 @@ await test('after the exam: catch-up list, real marks against the forecast', asy
   expect((await text(page, '.after .big')).includes('Real: 23'), 'verdict: ' + await text(page, '.after .big'));
   expect((await state(page)).exams[0].result.marks === 23, 'result not saved');
   await shot(page, 'after', true);
+});
+
+await test('daytime exam: says "today", keeps the last minutes free, and does not talk about bedtime', withOpts({ at: '2026-10-04T08:00:00' }, async ({ page }) => {
+  await page.goto(BASE);
+  await page.getByRole('button', { name: 'Plan my exam' }).click();
+  await page.getByRole('button', { name: 'Today' }).click();
+  await page.getByLabel('Exam time').fill('14:00');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByLabel('Chapter list').fill('Light\nSound\nHeat\nMotion\nForce');
+  await page.getByRole('button', { name: 'Next' }).click();
+  for (const a of ['Blank', 'Bits', 'Blank', 'Bits', 'Blank']) await page.locator('.answer', { hasText: a }).first().click();
+  await page.locator('.summary').waitFor();
+  await page.getByRole('button', { name: 'Show my plan' }).click();
+  await page.locator('.plan h1').waitFor();
+  const body = await page.locator('.plan').innerText();
+  expect(body.includes('Today, in this order') && !body.includes('Tonight'), 'daytime plan still says tonight');
+  expect(body.includes('Last 20 minutes before the exam'), 'recall section not adapted');
+  expect(!(await text(page, '.time-line')).includes('bedtime'), 'bedtime shown for a 2 PM exam: ' + await text(page, '.time-line'));
+  const lastEnd = (await page.locator('ol.rows.numbered .row-sub').last().innerText()).split('–').pop().trim();
+  expect(lastEnd === '1:25 PM' || lastEnd === '1:40 PM' || /^1[:]\d\d PM$/.test(lastEnd), 'last block ends at ' + lastEnd + ', should be at or before 1:40 PM');
+  const s = await state(page);
+  expect(s.exams[0].morningMin === 20, 'recall minutes not saved');
+}));
+
+await test('a long "Not tonight" list is folded, closest misses first', async ({ page }) => {
+  const many = Array.from({ length: 16 }, (_, i) => `Topic ${i + 1} (${3 + (i % 5)} marks)`).join('\n');
+  await setupExam(page, { chapters: many, answers: ['Blank', 'Bits', 'Most', 'Easy'] });
+  const visible = await page.locator('section.list-block:has(h2:text("Not tonight")) > ul .row').count();
+  expect(visible === 5, 'expected 5 rows before the fold, got ' + visible);
+  const fold = page.locator('details.fold summary');
+  expect(/Show \d+ more/.test(await fold.innerText()), 'no fold');
+  await fold.click();
+  expect(await page.locator('details.fold .row').first().isVisible(), 'fold did not open');
+});
+
+await test('the plan can leave the phone: copy as text', async ({ page, ctx }) => {
+  await ctx.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await loadSample(page);
+  await page.getByRole('button', { name: 'Copy the plan' }).click();
+  await page.locator('.off-phone [role=status]', { hasText: 'Copied' }).waitFor();
+  const clip = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clip.startsWith('Biology test (Tomorrow, 8:00 AM)'), 'clipboard: ' + clip.slice(0, 60));
+  expect(clip.includes('1. Respiration: 50 min, 5:50 PM – 6:45 PM') && clip.includes('Not tonight: Cell structure, Cell division, Human body systems'), 'plan text wrong: ' + clip);
+  expect(clip.includes('Stop at 9:45 PM. Bedtime 10:00 PM.') && clip.includes('about 29 of 50 (an estimate)'), 'plan text footer wrong');
+});
+
+await test('each block says what to do in it', async ({ page }) => {
+  await loadSample(page);
+  await page.goto(BASE + '#/study');
+  await page.getByRole('button', { name: 'Start the block' }).click();
+  expect((await text(page, '.method-kind')).toLowerCase() === 'first pass', 'Respiration is Blank, so a first pass: ' + await text(page, '.method-kind'));
+  expect(await page.locator('.steps li').count() === 3, 'three steps expected');
+});
+
+await test('keyboard: focus lands on the new screen\'s heading after moving on', withOpts({ width: 1280, height: 800 }, async ({ page }) => {
+  await page.goto(BASE);
+  for (let i = 0; i < 12; i++) { await page.keyboard.press('Tab'); if (await page.evaluate(() => document.activeElement?.innerText) === 'Try a sample') break; }
+  await page.keyboard.press('Enter');
+  await page.locator('.plan h1').waitFor();
+  const focus = await page.evaluate(() => document.activeElement?.tagName + ':' + document.activeElement?.innerText);
+  expect(focus === 'H1:Biology test', 'focus went to ' + focus);
+}));
+
+await test('storage blocked by the browser: the app still works for this tab and says so', async ({ page }) => {
+  await page.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get() { throw new Error('blocked'); } }); });
+  await page.goto(BASE);
+  await page.getByRole('button', { name: 'Try a sample' }).click();
+  expect(await text(page, '.plan h1') === 'Biology test', 'plan did not render without storage');
+  expect(await page.locator('#save-note').isVisible(), 'no warning that nothing is being saved');
 });
 
 await test('broken saved data does not break the app', async ({ page }) => {
