@@ -13,19 +13,29 @@ import { after } from './ui/after.js';
 import { exams } from './ui/exams.js';
 import { share } from './ui/share.js';
 
+// Some browsers block storage (strict private modes). Triage then keeps everything in memory for this tab.
+function openStorage() {
+  try { const s = window.localStorage; s.getItem('triage-v1'); return { storage: s, kept: true }; }
+  catch {
+    const mem = new Map();
+    return { kept: false, storage: { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => { mem.set(k, String(v)); } } };
+  }
+}
+const { storage, kept } = openStorage();
+
 const main = document.getElementById('main');
 const live = document.getElementById('live');
 let leaving = [];          // things to stop when the screen changes (timers)
 
 const app = {
-  state: load(localStorage),
+  state: load(storage),
   draft: null,             // an exam being set up, not saved yet
   shared: null,            // an exam that arrived by class link, waiting for a yes
 
   /** The time, as this exam sees it. (The sample exam runs on its own clock.) */
   now(exam = app.exam()) { return new Date(Date.now() + (exam?.clockOffset || 0)); },
   exam() { return app.state.exams.find((e) => e.id === app.state.active) || null; },
-  save() { if (!save(localStorage, app.state)) app.say('Could not save. Your browser storage may be full or blocked.'); },
+  save() { if (!save(storage, app.state)) app.say('Could not save. Your browser storage may be full or blocked.'); },
 
   /** Change the active exam, save, and redraw. */
   update(fn, redraw = true) { const e = app.exam(); if (!e) return; fn(e); app.save(); if (redraw) app.render(); },
@@ -79,11 +89,13 @@ function render() {
       h('p', null, h('a', { class: 'btn', href: '#/exams' }, 'My exams')));
   }
   if (!el) return;                       // the view sent us somewhere else
+  // If the keyboard was in use, keep it somewhere sensible: on the new screen's heading.
+  const hadFocus = !!document.activeElement && document.activeElement !== document.body;
   main.replaceChildren(el);
   document.body.dataset.route = name || 'home';
   window.scrollTo(0, 0);
   const h1 = el.querySelector('h1');
-  if (h1 && document.activeElement && document.activeElement !== document.body) { h1.tabIndex = -1; h1.focus({ preventScroll: true }); }
+  if (h1 && hadFocus) { h1.tabIndex = -1; h1.focus({ preventScroll: true }); }
   document.title = (h1 ? h1.textContent + ' · ' : '') + 'Triage';
 }
 
@@ -103,7 +115,8 @@ applyTheme();
 
 window.addEventListener('hashchange', render);
 // If another tab changes the saved data, pick it up.
-window.addEventListener('storage', (e) => { if (e.key === 'triage-v1') { app.state = load(localStorage); render(); } });
+window.addEventListener('storage', (e) => { if (e.key === 'triage-v1') { app.state = load(storage); render(); } });
+if (!kept) document.getElementById('save-note').hidden = false;
 render();
 
 // Works offline after the first visit.

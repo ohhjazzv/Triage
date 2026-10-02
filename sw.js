@@ -1,7 +1,7 @@
 // Service worker: makes Triage work with no internet after the first visit.
 // It only ever answers requests for Triage's own files. It never calls any other site.
 
-const VERSION = 'triage-v1';
+const VERSION = 'triage-v2';
 const FILES = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
