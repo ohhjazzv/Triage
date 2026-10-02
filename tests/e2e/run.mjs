@@ -100,6 +100,38 @@ await test('home shows the moment, the sample Marks Map and two buttons', async 
   const words = (await page.locator('body').innerText()).toLowerCase();
   for (const banned of ['planner', 'study buddy', 'ai-powered', 'productivity']) expect(!words.includes(banned), `the word "${banned}" is on the home screen`);
   await shot(page, 'home-phone', true);
+  // the start page also says how it works, and where to check the claims
+  expect(await page.locator('.how li').count() === 3 && await page.locator('.home .rules li').count() === 3, 'the three steps or the three rules are missing');
+  expect((await text(page, '.how')).includes('photo of the syllabus'), 'the steps do not mention adding a photo');
+  await page.locator('.trust a', { hasText: 'How sure is this?' }).click();
+  await page.locator('h1', { hasText: 'How sure is this?' }).waitFor();
+  await page.goBack();
+  await page.getByRole('button', { name: 'Start with my exam' }).click();
+  await page.locator('h1', { hasText: 'What is the exam?' }).waitFor();
+});
+
+await test('the logo always leads to the start page, which offers the way back into a saved plan', async ({ page }) => {
+  await loadSample(page);
+  await page.locator('a.brand').click();
+  await page.locator('h1', { hasText: 'Know what to study' }).waitFor();
+  expect((await text(page, '.resume')).includes('Biology test'), 'the saved exam is not offered on the start page');
+  expect(await page.getByRole('button', { name: 'Plan another exam' }).isVisible(), 'no way to plan another exam');
+  await page.getByRole('link', { name: 'Open my plan' }).click();
+  await page.locator('.plan h1', { hasText: 'Biology test' }).waitFor();
+  // opening Triage again with an exam saved goes straight to the plan
+  await page.goto(BASE);
+  await page.locator('.plan h1').waitFor();
+  expect(page.url().endsWith('#/plan'), 'a fresh open did not land on the plan: ' + page.url());
+  // while a block is running, the start page leads back to it
+  await page.goto(BASE + '#/study');
+  await page.getByRole('button', { name: 'Start the block' }).click();
+  await page.locator('a.brand').click();
+  await page.getByRole('link', { name: 'Back to my block' }).click();
+  await page.locator('.timer').waitFor();
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.locator('a.brand').click();
+  await page.locator('.resume').waitFor();
+  await shot(page, 'home-laptop-with-exam', true);
 });
 
 await test('sample: the plan appears with the numbers in the README', async ({ page }) => {
