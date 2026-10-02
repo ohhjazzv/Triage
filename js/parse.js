@@ -51,7 +51,7 @@ function parseLine(raw) {
       // drop a leading serial number column: "3 | Metals | 5"
       if (parts.length >= 3 && /^\d{1,3}[.)]?$/.test(parts[0]) && !/^\d/.test(parts[1])) parts.shift();
       const name = stripLead(parts[0]);
-      const out = { name };
+      const out = { name, full: parts[0] };
       for (const p of parts.slice(1)) {
         const mk = readMarks(p), sz = readSize(p);
         if (mk != null && out.marks == null) out.marks = mk;
@@ -78,15 +78,20 @@ function parseLine(raw) {
   }
 
   out.name = stripLead(line);
+  out.full = line;
   return finish(out);
 }
 
+const tidy = (text) => String(text || '').replace(/\s+/g, ' ').replace(/^[\s:.\-–—*•·>]+|[\s:\-–—]+$/g, '').trim();
+const clip = (name) => (name.length > MAX_NAME ? name.slice(0, MAX_NAME - 1).trimEnd() + '…' : name);
+
 function finish(out) {
-  let name = String(out.name || '').replace(/\s+/g, ' ').replace(/^[\s:.\-–—]+|[\s:\-–—]+$/g, '').trim();
+  const name = tidy(out.name);
   if (!name) return null;
   if (!/[\p{L}]/u.test(name)) return null;                 // must contain a letter
-  if (name.length > MAX_NAME) name = name.slice(0, MAX_NAME - 1).trimEnd() + '…';
-  const res = { name };
+  const res = { name: clip(name) };
+  const full = clip(tidy(out.full));
+  if (full && full !== res.name) res.full = full;          // the line with its numbering kept, in case two names clash
   if (out.marks != null) res.marks = out.marks;
   if (out.size) res.size = out.size;
   return res;
@@ -107,15 +112,23 @@ export function parseSyllabus(text) {
   // Everything on one line, separated by commas: "Real Numbers, Polynomials, Triangles"
   const filled = lines.filter((l) => l.trim());
   if (filled.length === 1 && !/[|\t]/.test(filled[0]) && (filled[0].match(/,/g) || []).length >= 2) lines = filled[0].split(',');
-  const seen = new Set(), out = [];
+  const seen = new Set(), out = [], firstWith = new Map();
   for (const raw of lines) {
     if (isNoise(raw)) continue;
     // A bare heading such as "History:" groups what follows; it is not a chapter itself.
     if (/^[^|\t\d]{2,40}:\s*$/.test(raw.trim())) continue;
     const ch = parseLine(raw);
     if (!ch) continue;
-    const key = ch.name.toLowerCase();
+    const full = ch.full; delete ch.full;
+    let key = ch.name.toLowerCase();
+    // "Chapter 1: Revision" and "Chapter 2: Revision" must stay two chapters: keep the numbering when names clash.
+    if (seen.has(key) && full && !seen.has(full.toLowerCase())) {
+      const first = firstWith.get(key);
+      if (first && first.full && !seen.has(first.full.toLowerCase())) { out[first.i].name = first.full; seen.add(first.full.toLowerCase()); firstWith.delete(key); }
+      ch.name = full; key = full.toLowerCase();
+    }
     if (seen.has(key)) continue;
+    if (full) firstWith.set(key, { i: out.length, full });
     seen.add(key); out.push(ch);
     if (out.length >= MAX_CHAPTERS) break;
   }

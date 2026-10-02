@@ -90,6 +90,18 @@ test('duplicates, blanks, dividers and junk are dropped', () => {
   assert.deepEqual(parseSyllabus(''), []); assert.deepEqual(parseSyllabus(null), []); assert.deepEqual(parseSyllabus('   \n\n'), []);
 });
 
+test('lines that differ only in their numbering stay separate chapters', () => {
+  assert.deepEqual(names('Chapter 1: Revision\nChapter 2: Revision\nChapter 3: Revision'), ['Chapter 1: Revision', 'Chapter 2: Revision', 'Chapter 3: Revision']);
+  assert.deepEqual(names('1. Poem\n2. Poem\n3. Story'), ['1. Poem', '2. Poem', 'Story']);
+  assert.deepEqual(names('Unit 1 | 5 | S\nUnit 2 | 6 | L').length, 2);
+  const long = Array.from({ length: 30 }, (_, i) => `Chapter ${i + 1}: A very long chapter title about the causes and consequences of something (${(i % 9) + 3} marks)`).join('\n');
+  const got = parseSyllabus(long);
+  assert.equal(got.length, 30); assert.equal(got[7].marks, 10); assert.ok(got.every((c) => c.name.length <= 80));
+  assert.equal(new Set(got.map((c) => c.name)).size, 30);
+  // true duplicates are still dropped
+  assert.deepEqual(names('Light\nLight\n1. Light'), ['Light', '1. Light']);
+});
+
 test('very long input is capped, very long names are trimmed', () => {
   const many = Array.from({ length: 200 }, (_, i) => `Topic number ${i + 1}`).join('\n');
   assert.equal(parseSyllabus(many).length, 60);
