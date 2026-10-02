@@ -2,7 +2,7 @@
 
 **More syllabus than time? Triage tells you what to study, what to skip, and when to stop.**
 
-Live: _link added when published_
+**Try it: https://ohhjazzv.github.io/Triage/** (no login; tap "Try a sample")
 
 ![Every square is one mark](docs/thumbnail.png)
 
