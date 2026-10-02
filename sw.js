@@ -1,7 +1,7 @@
 // Service worker: makes Triage work with no internet after the first visit.
 // It only ever answers requests for Triage's own files. It never calls any other site.
 
-const VERSION = 'triage-v3';
+const VERSION = 'triage-v4';
 const READER = 'triage-reader-1';      // the photo text reader: big, never changes, kept across updates
 const FILES = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest',

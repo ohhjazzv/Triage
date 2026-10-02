@@ -117,6 +117,8 @@ window.addEventListener('hashchange', render);
 // If another tab changes the saved data, pick it up.
 window.addEventListener('storage', (e) => { if (e.key === 'triage-v1') { app.state = load(storage); render(); } });
 if (!kept) document.getElementById('save-note').hidden = false;
+// Opening Triage with an exam already saved goes straight to its plan. The logo always leads to the start page.
+if (!location.hash && app.exam()) history.replaceState(null, '', location.pathname + location.search + '#/plan');
 render();
 
 // Works offline after the first visit.
