@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Nothing may load from, or be sent to, any other site. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'">
+  <title>Triage: what to study, what to skip, when to stop</title>
+  <meta name="description" content="Exam tomorrow and more syllabus than time? Triage tells you what to study, what to skip, and when to stop. No login. Works offline.">
+  <meta property="og:title" content="Triage: what to study, what to skip, when to stop">
+  <meta property="og:description" content="Exam tomorrow and more syllabus than time? Every square is one mark. See which ones tonight can still win.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="docs/thumbnail.png">
+  <meta name="theme-color" content="#faf7f2" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141416" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <a class="brand" href="#/" aria-label="Triage, home">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>Triage
+    </a>
+    <nav class="top-nav" aria-label="Main">
+      <a href="#/exams">Exams</a>
+      <a href="#/sure">How sure?</a>
+      <button id="theme" class="icon-btn" type="button" aria-label="Switch between light and dark">
+        <span aria-hidden="true"></span>
+      </button>
+    </nav>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <noscript><section class="screen"><h1>Triage needs JavaScript.</h1><p>It runs entirely in your browser. Nothing is sent anywhere.</p></section></noscript>
+  </main>
+
+  <footer class="foot">
+    <p>Built with AI, runs without it. No account. Nothing leaves this device.</p>
+  </footer>
+
+  <div id="live" class="sr" aria-live="polite"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

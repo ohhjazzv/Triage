@@ -73,6 +73,7 @@ export function cleanExam(e) {
     forecast: typeof e.forecast === 'number' && isFinite(e.forecast) ? e.forecast : null,   // forecast when the exam was marked done
     result: e.result && typeof e.result.marks === 'number' && isFinite(e.result.marks) ? { marks: Math.max(0, e.result.marks) } : null,
     sample: !!e.sample,
+    clockOffset: num(e.clockOffset, -4e10, 4e10, 0),   // the sample exam runs on its own clock ("it is 5:50 PM")
     createdAt: str(e.createdAt, 30) || new Date().toISOString(),
   };
 }
