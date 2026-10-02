@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <!-- Nothing may load from, or be sent to, any other site. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'">
+  <!-- Nothing may load from, or be sent to, any other site. ('wasm-unsafe-eval' lets the on-device photo reader run; it is not general eval.) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'">
   <title>Triage: what to study, what to skip, when to stop</title>
   <meta name="description" content="Exam tomorrow and more syllabus than time? Triage tells you what to study, what to skip, and when to stop. No login. Works offline.">
   <meta property="og:title" content="Triage: what to study, what to skip, when to stop">
@@ -40,7 +40,7 @@
 
   <footer class="foot">
     <p id="save-note" hidden>This browser is not letting Triage save. Everything works, but only until you close this tab.</p>
-    <p>Built with AI, runs without it. No account. Nothing leaves this device.</p>
+    <p>Built with AI. The plan is plain maths you can check. No account. Nothing leaves this device.</p>
   </footer>
 
   <div id="live" class="sr" aria-live="polite"></div>

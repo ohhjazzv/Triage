@@ -2,7 +2,7 @@
 //   1. What is the exam?   2. What is in it?   3. How well do you know each one?   4. When can you study?
 
 import { h, field, copyText, plural, whole } from './dom.js';
-import { parseSyllabus, AI_PROMPT } from '../parse.js';
+import { parseSyllabus, tidyOcr, AI_PROMPT } from '../parse.js';
 import { KNOW_ORDER } from '../engine.js';
 import {
   dayOf, atDay, toMinutes, toHHMM, fmtTime, fmtDur, fmtDay, windows, totalBlocks, bedtimeAfter,
@@ -98,14 +98,65 @@ function step2(app, d) {
     oninput: (e) => { d.text = e.target.value; keep(app); paint(); } });
   ta.value = d.text;
 
+  // ----- a photo of the syllabus, read on this device -----
+  const SHAKY = 80;      // below this confidence, say plainly that the photo was hard to read
+  const photoStatus = h('p', { class: 'photo-status', role: 'status', 'aria-live': 'polite' });
+  let busy = false;
+  async function addPhoto(file) {
+    if (busy || !file) return;
+    if (!String(file.type).startsWith('image/')) { photoStatus.textContent = 'That is not a picture. For a PDF, take a screenshot of the page and add that.'; return; }
+    busy = true; pick.disabled = true; photoBox.classList.add('busy');
+    photoStatus.textContent = 'Straightening and cleaning the photo…';
+    try {
+      const { readPhoto } = await import('../ocr.js');
+      const { text, sure } = await readPhoto(file, (stage, share) => {
+        photoStatus.textContent = stage === 'reading' ? `Reading the photo… ${Math.round(share * 100)}%`
+          : stage === 'looking' ? 'Straightening and cleaning the photo…' : 'Getting the text reader ready (about 7 MB, the first time only)…';
+      });
+      const chapters = parseSyllabus(tidyOcr(text)), found = chapters.length;
+      const lines = chapters.map((c) => c.name + (c.marks ? ` (${c.marks} marks)` : '')).join('\n');
+      if (!found) {
+        photoStatus.textContent = 'Could not find any text in that picture. Try a straighter, brighter photo, or type the chapters.';
+      } else {
+        d.text = d.text.trim() ? d.text.replace(/\s+$/, '') + '\n' + lines : lines;
+        ta.value = d.text; ta.scrollTop = 0; keep(app); paint();
+        photoStatus.textContent = sure < SHAKY
+          ? `Found ${plural(found, 'chapter')}, but this photo was hard to read. Check every line, or try a sharper photo in better light.`
+          : `Found ${plural(found, 'chapter')} in the photo. Check the list and fix any mistakes: photo reading is never perfect.`;
+      }
+    } catch (err) {
+      photoStatus.textContent = err?.message === 'too-big' ? 'That picture is too big. Try a smaller one.'
+        : 'Reading the photo did not work on this device. You can type the chapters instead.';
+    } finally {
+      busy = false; pick.disabled = false; pick.value = ''; photoBox.classList.remove('busy');
+    }
+  }
+  const pick = h('input', { type: 'file', accept: 'image/*', class: 'sr', id: 'photo', onchange: (e) => addPhoto(e.target.files?.[0]) });
+  const photoBox = h('div', { class: 'photo' },
+    pick,
+    h('label', { class: 'btn', for: 'photo' }, 'Add a photo of the syllabus'),
+    h('p', { class: 'fine' }, 'A photo, a screenshot, or a picture you paste or drop on the box. It is read on this device and never uploaded.'),
+    photoStatus);
+
+  // Paste a screenshot, or drop a picture on the box.
+  ta.addEventListener('paste', (e) => {
+    const file = [...(e.clipboardData?.files || [])].find((f) => f.type.startsWith('image/'));
+    if (file) { e.preventDefault(); addPhoto(file); }
+  });
+  ta.addEventListener('dragover', (e) => { if ([...(e.dataTransfer?.types || [])].includes('Files')) e.preventDefault(); });
+  ta.addEventListener('drop', (e) => {
+    const file = [...(e.dataTransfer?.files || [])].find((f) => f.type.startsWith('image/'));
+    if (file) { e.preventDefault(); addPhoto(file); }
+  });
+
   const copied = h('span', { class: 'fine', role: 'status' });
   const photo = h('details', { class: 'more' },
-    h('summary', null, 'Got a photo or PDF of the syllabus?'),
-    h('p', null, 'Triage has no AI inside it. But any AI chat you already use can read a photo. Send it the photo with this message, then paste its answer above.'),
+    h('summary', null, 'Photo too messy, handwritten, or a PDF?'),
+    h('p', null, 'Any AI chat you already use can read it. Send it the photo or PDF with this message, then paste its answer in the box above.'),
     h('pre', { class: 'prompt' }, AI_PROMPT),
     h('button', { class: 'btn small', type: 'button', onclick: async () => { copied.textContent = (await copyText(AI_PROMPT)) ? ' Copied.' : ' Select the text and copy it.'; } }, 'Copy this message'), copied);
 
-  const body = h('div', { class: 'form' }, ta, preview, photo);
+  const body = h('div', { class: 'form' }, ta, photoBox, preview, photo);
   const el = shell(2, 'What is in it?', body, {
     nextDisabled: parseSyllabus(d.text).length === 0,
     next: () => {

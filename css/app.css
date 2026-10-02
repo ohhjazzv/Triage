@@ -209,6 +209,12 @@ textarea { resize: vertical; line-height: 1.45; }
 .more[open] { background: var(--soft); border-radius: var(--radius); padding: 4px 13px 13px; }
 .prompt { white-space: pre-wrap; font: 0.88rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 8px 0; overflow-x: auto; }
 
+.photo { display: grid; gap: 8px; justify-items: start; }
+.photo .btn { cursor: pointer; }
+.photo.busy .btn { opacity: 0.5; pointer-events: none; }
+.photo input:focus-visible + .btn { outline: 3px solid var(--accent); outline-offset: 2px; }
+.photo-status { font-weight: 600; }
+.photo-status:empty { display: none; }
 .rate { display: grid; gap: 10px; }
 .count { color: var(--ink-2); font-size: 0.9rem; }
 .chapter-name { font: 700 1.5rem/1.2 var(--serif); text-wrap: balance; }
