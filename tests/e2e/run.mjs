@@ -1,4 +1,4 @@
-// Browser tests. Run:  node tests/e2e/run.mjs
+// Browser tests. Run:  node tests/e2e/run.mjs      (set BASE_URL to test the published site)
 // Needs Playwright (npm i -D playwright, or set PLAYWRIGHT_PATH to an installed copy).
 // Starts its own tiny web server, drives a real browser with a controlled clock, and checks the app end to end.
 
@@ -27,7 +27,9 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(file).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const BASE = `http://127.0.0.1:${server.address().port}/`;
+// To test the published site instead of the local files:  BASE_URL=https://ohhjazzv.github.io/Triage/ node tests/e2e/run.mjs
+const BASE = process.env.BASE_URL ? process.env.BASE_URL.replace(/\/?$/, '/') : `http://127.0.0.1:${server.address().port}/`;
+console.log('Testing ' + BASE + '\n');
 
 const browser = await chromium.launch();
 let passed = 0, failed = 0;
