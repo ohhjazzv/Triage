@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSyllabus, AI_PROMPT } from '../js/parse.js';
+import { parseSyllabus, tidyOcr, AI_PROMPT } from '../js/parse.js';
 
 const names = (t) => parseSyllabus(t).map((c) => c.name);
 const one = (t) => parseSyllabus(t)[0];
@@ -117,3 +117,81 @@ test('silly marks are ignored, not trusted', () => {
 test('Windows line endings', () => {
   assert.deepEqual(names('Light\r\nSound\r\nHeat'), ['Light', 'Sound', 'Heat']);
 });
+
+test('text read from a photo is cleaned before it is parsed', () => {
+  const ocr = [
+    'Class 10 Science',
+    '',
+    'e Chemical Reactions and Equations (7 marks)',
+    '« Acids, Bases and Salts [6]',
+    'o Metals and Non-metals     5',
+    '3. Life Processes ........ 8 marks',
+    '| Control and Coordination | 6 |',
+    '— —',
+    '12',
+    '~~ ;: ..',
+    'Light: Reflection and Refraction\t9',
+  ].join('\n');
+  const chapters = parseSyllabus(tidyOcr(ocr));
+  assert.deepEqual(chapters.map((c) => [c.name, c.marks]), [
+    ['Chemical Reactions and Equations', 7], ['Acids, Bases and Salts', 6], ['Metals and Non-metals', 5],
+    ['Life Processes', 8], ['Control and Coordination', 6], ['Light: Reflection and Refraction', 9],
+  ]);
+  assert.equal(tidyOcr(''), ''); assert.equal(tidyOcr(null), ''); assert.equal(tidyOcr('.. -- 12\n ~'), '');
+  // an ordinary word starting with e or o is left alone
+  assert.equal(tidyOcr('electricity and magnetism\nOur Environment'), 'electricity and magnetism\nOur Environment');
+});
+
+test('a table read from a photo: the header row and the serial numbers go, the marks stay', () => {
+  const ocr = [
+    'CLASS X SOCIAL SCIENCE',
+    'Periodic Test 2 Maximum Marks: 40',
+    '"S.No.   ‘Chapter                                           Marks |',
+    '1      Nationalism in India                                     8',
+    '2       Resources and Development                              5',
+    '3        Power Sharing                                                    6',
+    '4 Federalism  5',
+    '5 | Development | 6 |',
+  ].join('\n');
+  assert.deepEqual(parseSyllabus(tidyOcr(ocr)).map((c) => [c.name, c.marks]), [
+    ['Nationalism in India', 8], ['Resources and Development', 5], ['Power Sharing', 6], ['Federalism', 5], ['Development', 6],
+  ]);
+  // serial numbers kept with a single space are dropped only when they count up
+  assert.equal(tidyOcr('1 Light\n2 Sound\n3 Heat\n4 Motion'), 'Light\nSound\nHeat\nMotion');
+  assert.equal(tidyOcr('3 Idiots review\n1857 Revolt\n12 Angry Men'), '3 Idiots review\n1857 Revolt\n12 Angry Men');
+});
+
+test('the title of the sheet is not a chapter, but a chapter that sounds like one is kept', () => {
+  const titles = ['Class 10 Science — Half-yearly syllabus', 'Science portion for tomorrow', 'GRADE 9 Mathematics', 'Half Yearly Examination 2026', 'Time allowed: 3 hours', 'Std. X Unit Test 2'];
+  for (const t of titles) assert.equal(tidyOcr(t), '', t);
+  const real = ['Periodic Classification of Elements', '4. Class 10 revision of the mid-term paper', 'The Rise of Nationalism in Europe', 'Portrait of a Lady', 'Marks of a Good Citizen'];
+  for (const t of real) assert.equal(parseSyllabus(tidyOcr(t)).length, 1, t);
+  assert.equal(tidyOcr('+ Acids, Bases and Salts'), 'Acids, Bases and Salts');
+});
+
+test('a photo of a school circular: the name of the school and the note at the bottom are left out', () => {
+  const ocr = [
+    'GREENFIELD PUBLIC SCHOOL',
+    'Half Yearly Examination 2026-27',
+    'Class X Subject: Science       80',
+    '| S.No | Name of the Chapter                                          Marks |',
+    '    1.   | Chemical Reactions and Equations                              8      |',
+    '     2.    | Acids, Bases and Salts                               i                7   |',
+    '[ 3.    | Metals and Non-metals                                           7',
+    '       | Carbon and its Compounds                                               6       [',
+    '|   5.  [Life Processes                                           9     |',
+    '|    8.   [Light - Reflection and Refraction                                  10      i',
+    'Electricity',
+    '|   11.   | Magnetic Effects of Electric Current      6      |',
+    'Note: Students must bring their own geometry box. Paper will be of 3 hours.',
+  ].join('\n');
+  assert.deepEqual(parseSyllabus(tidyOcr(ocr)).map((c) => [c.name, c.marks]), [
+    ['Chemical Reactions and Equations', 8], ['Acids, Bases and Salts', 7], ['Metals and Non-metals', 7], ['Carbon and its Compounds', 6],
+    ['Life Processes', 9], ['Light - Reflection and Refraction', 10], ['Electricity', undefined], ['Magnetic Effects of Electric Current', 6],
+  ]);
+  // marks in square brackets are not table lines
+  assert.deepEqual(parseSyllabus(tidyOcr('Light [7]\nSound [5]')).map((c) => [c.name, c.marks]), [['Light', 7], ['Sound', 5]]);
+  // a short list with no marks keeps every line
+  assert.equal(tidyOcr('History\nPower Sharing\nFederalism').split('\n').length, 3);
+});
+

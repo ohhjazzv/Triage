@@ -1,4 +1,5 @@
 // Smart paste: turn a messy syllabus into a clean chapter list. Rules only, no AI.
+// (Text read from a photo comes through tidyOcr() below first.)
 //
 // Understands, for example:
 //   1. Chemical Reactions and Equations
@@ -133,6 +134,69 @@ export function parseSyllabus(text) {
     if (out.length >= MAX_CHAPTERS) break;
   }
   return out;
+}
+
+/**
+ * Clean up text that came from reading a photo (OCR), before smart paste looks at it.
+ * Photo readers turn bullets into stray letters, split table columns with runs of spaces,
+ * and pick up specks as punctuation. Returns tidy lines, one possible chapter per line.
+ */
+const PAGE_HEADING = /\b(?:syllabus|portions?|date\s*sheet|time\s*table|half[\s-]*yearly|mid[\s-]*term|periodic\s+test|unit\s+test|examination|max(?:imum)?\.?\s*marks|time\s+allowed|(?:class|grade|std\.?)\s*[-:]?\s*(?:\d{1,2}|[ivx]{1,4})\b)/i;
+const NUMBERED = /^\s*(?:\(?\d{1,3}[.):]|(?:ch(?:apter)?|unit|lesson)\.?\s*\d)/i;
+// the top row of a table: nothing but column names
+const TABLE_HEAD = /^(?:(?:s\.?\s*no\.?|sr\.?\s*no\.?|sl\.?\s*no\.?|no\.?|chapters?|lessons?|topics?|units?|names?|of|the|marks?|weightage|periods?|pages?)[\s|:.]*)+$/i;
+
+export function tidyOcr(text) {
+  const out = [];
+  for (const raw of String(text || '').replace(/\r/g, '').split('\n')) {
+    let line = raw.replace(/[‘’`]/g, "'").replace(/[“”]/g, '"').replace(/[|¦]/g, ' | ').trim();
+    if (!line) continue;
+    // what is left of a table's lines and the edge of the paper: stray brackets, and odd short
+    // "words" standing well apart from the text at either end of the line
+    const open = (line.match(/[\[{]/g) || []).length, shut = (line.match(/[\]}]/g) || []).length;
+    if (open !== shut) line = line.replace(/[\[\]{}]/g, ' | ');
+    for (let guard = 0, before = null; before !== line && guard < 6; guard++) {
+      before = line;
+      line = line.replace(/[\s|]+$/, '').replace(/\s{2,}[^\s\d]{1,3}$/, '');                       // "...  8      |     EF"
+      line = line.replace(/^[\s|]+/, '').replace(/^(?:[^\s\d]\S{0,2}\s+){1,3}\s{2,}(?=\S)/, '');   // "l {       3. Metals"
+      line = line.replace(/^\d{1,3}\s{3,}(?=\d{1,3}[.)]\s)/, '');                                  // "3       7. How do"
+    }
+    line = line.replace(/(\s{2,}|\|\s*)[iIl!](?=\s{2,}|\s*\||\s*$)/g, '$1').trim();
+    if (!line) continue;
+    // a bullet read as a symbol or a lone letter: "e Light", "o Sound", "« Heat", "¢ Motion", "+ Force"
+    line = line.replace(/^(?:[•●■□▪◦○*+«»¢©®°>~=_—–-]+|[eo0])\s+(?=[A-Z0-9(])/, '');
+    // a table row: "Light     7" or "Light ..... 7" -> "Light | 7"
+    line = line.replace(/\s*(?:\.{3,}|\s{2,}|\t+)\s*(\d{1,3}(?:\.\d+)?)\s*(marks?|m)?[\s|]*$/i, ' | $1');
+    // a serial-number column: "3      Power Sharing" -> "3. Power Sharing"
+    line = line.replace(/^(\d{1,3})(?:\s{2,}|\s*\|\s*)(?=\p{L})/u, '$1. ');
+    line = line.replace(/\s*\|\s*(?:\|\s*)+/g, ' | ').replace(/^\s*\|\s*|\s*\|\s*$/g, '').replace(/[ \t]{2,}/g, ' ').trim();
+    // specks at the edges of the page read as quote marks
+    line = line.replace(/(^|\s)["']+(?=\p{L})/gu, '$1').replace(/^[\s"',.;:_~^]+/, '').trim();
+    const letters = (line.match(/\p{L}/gu) || []).length;
+    if (letters < 3) continue;                                  // specks, page numbers, rules
+    if (letters / line.replace(/\s/g, '').length < 0.5) continue;   // mostly symbols: not a chapter
+    if (TABLE_HEAD.test(line.replace(/[\s|]*\d{0,3}$/, ''))) continue;
+    if (PAGE_HEADING.test(line) && !NUMBERED.test(line)) continue;   // the title of the sheet, not a chapter
+    out.push(line);
+  }
+  // When nearly every line carries marks, it is a table: lines above and below it are the school's
+  // name and a note at the bottom, not chapters. (Lines inside the table are always kept.)
+  const marked = out.map((l) => /\|\s*\d{1,3}(?:\.\d+)?$|\d\s*(?:marks?|m)?\s*[\])]\s*$|\d\s*marks?\s*$/i.test(l));
+  const hits = marked.filter(Boolean).length;
+  if (hits >= 4 && hits >= out.length * 0.6) {
+    const row = out.map((l, k) => marked[k] || NUMBERED.test(l));      // a numbered line is a row even if its marks were not read
+    out.splice(row.lastIndexOf(true) + 1); out.splice(0, row.indexOf(true));
+  }
+
+  // Serial numbers the reader kept with a single space: "1 Light", "2 Sound", "3 Heat" -> drop the numbers
+  const serial = out.map((l) => /^(\d{1,3})[.)]?\s+(?=\p{L})/u.exec(l)).map((m) => (m ? +m[1] : null));
+  const counted = serial.filter((v) => v != null);
+  let inOrder = 0;
+  for (let i = 1; i < counted.length; i++) if (counted[i] === counted[i - 1] + 1) inOrder++;
+  if (counted.length >= 3 && inOrder >= (counted.length - 1) * 0.6) {
+    for (let i = 0; i < out.length; i++) if (serial[i] != null) out[i] = out[i].replace(/^\d{1,3}[.)]?\s+/, '');
+  }
+  return out.join('\n');
 }
 
 /** The prompt a student can paste into any AI chat along with a photo of their syllabus. */
