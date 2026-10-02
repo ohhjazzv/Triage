@@ -65,7 +65,8 @@ export function sure(app) {
     h('p', null, 'So every forecast is a range and is labelled an estimate. After the exam, enter your real marks. Triage shows you how far off it was and remembers it.'),
 
     h('h2', null, 'Your data'),
-    h('p', null, 'Nothing leaves this device. There is no account, no tracking and no AI inside the app. The class link carries only the chapter list, never your answers.'),
+    h('p', null, 'Nothing leaves this device. There is no account and no tracking. The class link carries only the chapter list, never your answers.'),
+    h('p', null, 'No AI makes the plan: it is the arithmetic above, and you can check it. One optional helper does use machine learning: reading a photo of your syllabus. That is Tesseract, an open-source text reader, running on this device. It only turns the picture into text, and you check that text before it is used.'),
 
     h('h2', null, 'The numbers'),
     h('p', { class: 'fine' }, `A block is ${BLOCK} minutes. Blank, Bits, Most, Easy start a chapter at about 5%, 30%, 60%, 85% of its marks. `,
