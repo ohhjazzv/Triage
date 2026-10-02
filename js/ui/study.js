@@ -15,10 +15,37 @@ const RECALL_HINT = {
   all: 'I could explain it',
 };
 
-function howTo(m) {
-  if (m < 0.35) return 'First pass. Read for the big ideas and the headings. Do not copy out notes.';
-  if (m < 0.7) return 'Practise. Do questions from this chapter and check your answers.';
-  return 'Polish. Test yourself on the parts you still get wrong.';
+// What to actually do in a block. Three kinds, chosen from how well the chapter is known.
+// These are the methods with the best evidence: testing yourself and explaining in your own words,
+// not rereading and not copying notes.
+function method(m) {
+  if (m < 0.35) {
+    return { kind: 'First pass', line: 'First pass. Read for the big ideas. Do not copy out notes.', steps: [
+      ['5 min', 'Read the headings, the summary and the diagrams first.'],
+      ['15 min', 'Read it once. After each section, say its main point in one line.'],
+      ['5 min', 'Write the five questions most likely to be asked.'],
+    ] };
+  }
+  if (m < 0.7) {
+    return { kind: 'Practise', line: 'Practise. Do questions from this chapter and check your answers.', steps: [
+      ['First', 'Do questions from this chapter without looking at the answers.'],
+      ['Then', 'Check each one straight away.'],
+      ['Last', 'Mark the ones you got wrong. Read only those parts again.'],
+    ] };
+  }
+  return { kind: 'Polish', line: 'Polish. Test yourself on the parts you still get wrong.', steps: [
+    ['First', 'Go only to the parts you still get wrong.'],
+    ['Then', 'Explain each one aloud with the book closed.'],
+    ['Last', 'Write the formulas, dates or definitions from memory.'],
+  ] };
+}
+const howTo = (m) => method(m).line;
+
+function steps(m) {
+  const how = method(m);
+  return h('div', { class: 'method' },
+    h('p', { class: 'method-kind' }, how.kind),
+    h('ol', { class: 'steps' }, how.steps.map(([when, what]) => h('li', null, h('b', null, when + ' '), what))));
 }
 
 function clock(ms) {
@@ -37,6 +64,7 @@ function beep() {
     osc.connect(gain).connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.65);
     osc.onended = () => ctx.close();
   } catch { /* sound is a bonus */ }
+  try { navigator.vibrate?.([200, 100, 200]); } catch { /* so is a buzz */ }
 }
 
 // ----- the three states -----
@@ -85,8 +113,8 @@ function running(app, exam, cur) {
     h('p', { class: 'kicker' }, 'Studying now'),
     h('h1', null, cur.chapter.name),
     time,
-    h('p', { class: 'lead' }, howTo(masteryNow(cur.chapter))),
-    h('p', { class: 'fine' }, `Ends at ${fmtTime(cur.ends)}. Then you close the book and check what stayed.`),
+    steps(masteryNow(cur.chapter)),
+    h('p', { class: 'fine' }, `Ends at ${fmtTime(cur.ends)}. Then you close the book and check what stayed. Put your phone face down; it will beep.`),
     h('div', { class: 'actions' },
       h('button', { class: 'btn', onclick: finishEarly }, 'I finished early'),
       h('button', { class: 'btn', onclick: restart }, 'I lost time'),

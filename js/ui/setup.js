@@ -140,7 +140,7 @@ function step3(app, d) {
   return shell(3, 'How well do you know each one?', body, {
     back: () => { if (i > 0) { d.rate = i - 1; keep(app); app.render(); } else app.go('setup/2'); },
     next: c.know ? () => pick(c.know) : null,
-    note: 'Answer for the exam, not for how you feel. One tap moves on.',
+    note: 'Not sure? Close your eyes and name three things from this chapter. If you cannot, it is Blank or Bits. One tap moves on.',
   });
 }
 
@@ -223,7 +223,7 @@ function timeForm(t, now, forecast) {
     h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Study sessions'), list),
     field('Wake-up time on exam day', h('input', { type: 'time', value: t.wake, oninput: (e) => { if (e.target.value) { t.wake = e.target.value; paintSummary(); } } })),
     h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Sleep'), sleepLine),
-    field('Minutes free on the exam morning', h('input', { type: 'number', inputmode: 'numeric', min: 0, max: 240, value: t.morningMin, oninput: (e) => { t.morningMin = Math.min(240, Math.max(0, +e.target.value || 0)); } }),
+    field('Minutes to keep free just before the exam', h('input', { type: 'number', inputmode: 'numeric', min: 0, max: 240, value: t.morningMin, oninput: (e) => { t.morningMin = Math.min(240, Math.max(0, +e.target.value || 0)); } }),
       'For recalling what you studied. Not for new chapters.'),
     summary);
 }
