@@ -16,7 +16,7 @@ catch { console.log('Playwright is not installed. Skipping browser tests. (npm i
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT = path.join(ROOT, 'tests/e2e/out');
 fs.mkdirSync(OUT, { recursive: true });
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.gz': 'application/gzip', '.webmanifest': 'application/manifest+json' };
 
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -402,6 +402,109 @@ await test('storage blocked by the browser: the app still works for this tab and
   expect(await page.locator('#save-note').isVisible(), 'no warning that nothing is being saved');
 });
 
+// ------------------------------------------------------------------ a photo of the syllabus
+
+const FIXTURES = path.join(ROOT, 'tests/e2e/fixtures');
+const DONE = /^Found |Could not find|did not work|too big|not a picture/;
+
+async function toChapterStep(page) {
+  await page.goto(BASE);
+  await page.getByRole('button', { name: 'Plan my exam' }).click();
+  await page.getByLabel('Exam name').fill('Science');
+  await page.getByRole('button', { name: 'Tomorrow' }).click();
+  await page.getByLabel('Exam time').fill('08:00');
+  await page.getByLabel('Total marks').fill('80');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByLabel('Chapter list').waitFor();
+}
+/** Wait until the photo reader has finished, and return what it told the student. */
+async function photoDone(page) {
+  await page.waitForFunction((re) => new RegExp(re).test(document.querySelector('.photo-status')?.textContent || ''), DONE.source, { timeout: 90000 });
+  return page.locator('.photo-status').textContent();
+}
+/** The chapters the app found in the box, as "name=marks" strings. */
+const chaptersInBox = (page) => page.evaluate(async () => {
+  const { parseSyllabus } = await import(new URL('js/parse.js', document.baseURI).href);
+  return parseSyllabus(document.querySelector('textarea').value).map((c) => c.name + (c.marks != null ? '=' + c.marks : ''));
+});
+
+await test('a photo of the syllabus is read on the device and fills the chapter list', async ({ page, requests }) => {
+  await toChapterStep(page);
+  expect(await page.getByRole('button', { name: 'Next' }).isDisabled(), 'Next should wait for chapters');
+  await page.locator('#photo').setInputFiles(path.join(FIXTURES, 'list-photo.png'));
+  const said = await photoDone(page);
+  expect(said.startsWith('Found 7 chapters'), 'status was: ' + said);
+  expect(said.includes('Check the list'), 'the student is not told to check the result');
+  const got = await chaptersInBox(page);
+  const want = ['Chemical Reactions and Equations=7', 'Acids, Bases and Salts=6', 'Metals and Non-metals=5', 'Life Processes=8', 'Control and Coordination=6', 'Light: Reflection and Refraction=9', 'Electricity=8'];
+  expect(JSON.stringify(got) === JSON.stringify(want), 'read as: ' + got.join(' / '));
+  expect((await text(page, '.found')).includes('7 chapters'), 'the preview did not update');
+  await shot(page, 'photo-read', true);
+  // the photo never left the device: every request, including the text reader's own files, stayed on this origin
+  const outside = requests.filter((u) => !u.startsWith(BASE) && !u.startsWith('data:') && !u.startsWith('blob:'));
+  expect(outside.length === 0, 'requests to other origins: ' + outside.join(', '));
+  expect(requests.some((u) => u.includes('/vendor/tesseract/')), 'the text reader was not loaded from the app itself');
+  expect(!requests.some((u) => /list-photo/.test(u)), 'the photo was sent somewhere');
+  // and the list carries on into the rest of setup
+  await page.getByRole('button', { name: 'Next' }).click();
+  expect((await page.locator('body').innerText()).includes('Chemical Reactions and Equations'), 'the first chapter is not on the next screen');
+});
+
+await test('six kinds of picture: tilted tables, a dark chat screenshot, rows of dots, a faint photocopy', async ({ page }) => {
+  const PICTURES = [
+    ['circular-photo.jpg', ['Chemical Reactions and Equations=8', 'Acids, Bases and Salts=7', 'Metals and Non-metals=7', 'Carbon and its Compounds=6', 'Life Processes=9', 'Control and Coordination=6', 'How do Organisms Reproduce?=7', 'Light - Reflection and Refraction=10', 'The Human Eye and the Colourful World=5', 'Electricity=9', 'Magnetic Effects of Electric Current=6']],
+    ['table-tilted.jpg', ['Nationalism in India=8', 'Resources and Development=5', 'Power Sharing=6', 'Federalism=5', 'Development=6', 'Sectors of the Indian Economy=7', 'Water Resources=3']],
+    ['chat-dark.png', ['Chemical Reactions and Equations', 'Acids, Bases and Salts', 'Life Processes', 'Light: Reflection and Refraction', 'Electricity', 'Our Environment']],
+    ['contents-dots.jpg', ['Real Numbers=6', 'Polynomials=4', 'Pair of Linear Equations in Two Variables=8', 'Quadratic Equations=7', 'Arithmetic Progressions=5', 'Triangles=9']],
+    ['photocopy-faint.jpg', ['A Letter to God=5', 'Nelson Mandela: Long Walk to Freedom=6', 'Two Stories about Flying=5', 'From the Diary of Anne Frank=6', 'Glimpses of India=4', 'Dust of Snow (poem)=4']],
+  ];
+  await toChapterStep(page);
+  for (const [file, want] of PICTURES) {
+    await page.getByLabel('Chapter list').fill('');
+    await page.locator('#photo').setInputFiles(path.join(FIXTURES, file));
+    const said = await photoDone(page);
+    const got = await chaptersInBox(page);
+    expect(JSON.stringify(got) === JSON.stringify(want), `${file} was read as: ${got.join(' / ')} (${said})`);
+    await page.evaluate(() => { document.querySelector('.photo-status').textContent = ''; });
+  }
+});
+
+await test('a pasted screenshot is read too, and is added under what was already typed', async ({ page }) => {
+  await toChapterStep(page);
+  await page.getByLabel('Chapter list').fill('Magnetism (5 marks)');
+  const bytes = fs.readFileSync(path.join(FIXTURES, 'chat-dark.png')).toString('base64');
+  await page.evaluate(async (b64) => {
+    const file = new File([Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))], 'screenshot.png', { type: 'image/png' });
+    const data = new DataTransfer(); data.items.add(file);
+    document.querySelector('textarea').dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+  }, bytes);
+  const said = await photoDone(page);
+  expect(said.startsWith('Found 6 chapters'), 'status was: ' + said);
+  const got = await chaptersInBox(page);
+  expect(got.length === 7 && got[0] === 'Magnetism=5' && got[6] === 'Our Environment', 'box now holds: ' + got.join(' / '));
+  // pasting ordinary text still works as ordinary text
+  await page.getByLabel('Chapter list').fill('');
+  await page.evaluate(() => {
+    const data = new DataTransfer(); data.setData('text/plain', 'Sound');
+    const ta = document.querySelector('textarea');
+    const went = ta.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+    if (!went) throw new Error('a text paste was blocked');
+  });
+});
+
+await test('a PDF, or a picture with no words, gets a plain message and the list is left alone', async ({ page }) => {
+  await toChapterStep(page);
+  await page.getByLabel('Chapter list').fill('Light\nSound');
+  await page.locator('#photo').setInputFiles({ name: 'syllabus.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 not really') });
+  expect((await photoDone(page)).includes('not a picture'), 'no message for a PDF');
+  await page.locator('#photo').setInputFiles(path.join(FIXTURES, 'no-text.png'));
+  const said = await photoDone(page);
+  expect(said.includes('Could not find any text'), 'status was: ' + said);
+  expect(await page.getByLabel('Chapter list').inputValue() === 'Light\nSound', 'the list was changed');
+  await page.locator('#photo').setInputFiles({ name: 'broken.png', mimeType: 'image/png', buffer: Buffer.from('this is not a png') });
+  expect((await photoDone(page)).includes('did not work'), 'no message for a broken picture');
+  expect(!(await page.locator('#photo').isDisabled()), 'the photo button stayed locked');
+});
 await test('broken saved data does not break the app', async ({ page }) => {
   await page.goto(BASE);
   await page.evaluate(() => localStorage.setItem('triage-v1', '{"exams": [{"chapters": "oops"'));
@@ -429,6 +532,23 @@ await test('works offline after the first visit', withOpts({ sw: true, at: null 
   await page.getByRole('button', { name: 'Try a sample' }).click();
   expect(await text(page, '.plan h1') === 'Biology test', 'plan did not load offline');
   await page.goto(BASE + '#/sure'); await page.locator('.sure b', { hasText: 'Checked' }).waitFor();
+}));
+
+await test('the photo reader works offline once it has been used', withOpts({ sw: true, at: null }, async ({ page, ctx }) => {
+  await page.goto(BASE);
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await page.waitForTimeout(600);
+  await page.reload();                                                  // now the page is served by the service worker
+  await toChapterStep(page);
+  await page.locator('#photo').setInputFiles(path.join(FIXTURES, 'chat-dark.png'));
+  expect((await photoDone(page)).startsWith('Found 6'), 'first read failed');
+  await page.waitForTimeout(400);
+  await ctx.setOffline(true);
+  await page.reload();
+  await page.getByLabel('Chapter list').fill('');
+  await page.locator('#photo').setInputFiles(path.join(FIXTURES, 'contents-dots.jpg'));
+  const said = await photoDone(page);
+  expect(said.startsWith('Found 6'), 'offline read said: ' + said);
 }));
 
 await test('every control has a name, every input a label', async ({ page }) => {
