@@ -1,0 +1,14 @@
+{
+  "name": "triage",
+  "version": "1.0.0",
+  "description": "More syllabus than time? Triage tells you what to study, what to skip, and when to stop.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\"",
+    "robust": "node tests/robustness.js",
+    "serve": "python3 -m http.server 8080",
+    "e2e": "node tests/e2e/run.mjs"
+  }
+}
