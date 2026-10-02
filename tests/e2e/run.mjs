@@ -273,7 +273,7 @@ await test('pin and drop: the plan obeys, and a pin shows its price', async ({ p
   await page.locator('.tune-card', { hasText: 'Not in my exam' }).nth(3).getByRole('checkbox').check();   // Respiration is the 4th chapter
   await shot(page, 'tune', true);
   await page.getByRole('link', { name: 'Back to the plan' }).click();
-  const tonight = await page.locator('ol.rows .row-name').allInnerTexts();
+  const tonight = await page.locator('ol.rows.numbered .row-name').allInnerTexts();
   expect(tonight.includes('Human body systems') && !tonight.includes('Respiration'), 'tonight: ' + tonight.join(', '));
   expect((await page.locator('h2:text("Not tonight") + ul').innerText()).includes('You dropped this one'), 'dropped chapter not explained');
 });

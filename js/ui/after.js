@@ -44,7 +44,7 @@ export function after(app) {
 
   let verdict = null;
   if (exam.result) {
-    const diff = exam.result.marks - forecast;
+    const diff = exam.result.marks - Math.round(forecast);
     verdict = h('p', { class: 'big' }, `Forecast: about ${whole(forecast)}. Real: ${marks(exam.result.marks)}. `,
       Math.abs(diff) < 0.5 ? 'Triage was right on it.' : `Triage was ${marks(Math.abs(diff))} ${diff > 0 ? 'too low' : 'too high'}.`);
   }

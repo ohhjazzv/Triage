@@ -39,7 +39,7 @@ function tonight(pic) {
   const multiDay = pic.wins.filter((w) => w.blocks > 0).length > 1;
   return h('section', { class: 'list-block' },
     h('h2', null, multiDay ? 'Study, in this order' : 'Tonight, in this order'),
-    h('ol', { class: 'rows' }, p.tonight.map((r, i) => h('li', { class: 'row' },
+    h('ol', { class: 'rows numbered' }, p.tonight.map((r, i) => h('li', { class: 'row' },
       h('div', { class: 'row-main' },
         h('span', { class: 'row-n', 'aria-hidden': 'true' }, i + 1),
         h('span', { class: 'row-name' }, r.name),

@@ -164,8 +164,7 @@ h2 { font: 700 1.16rem/1.25 var(--serif); margin-top: 6px; }
 .row-gain { font: 700 1.05rem/1 var(--serif); color: var(--accent); white-space: nowrap; }
 .row-gain.muted { color: var(--ink-2); font: 400 0.86rem/1 var(--sans); }
 .row-sub { font-size: 0.9rem; color: var(--ink-2); }
-.row .row-n ~ .row-name { }
-ol.rows .row-sub, ol.rows .why { padding-left: 32px; }
+.rows.numbered .row-sub, .rows.numbered .why { padding-left: 32px; }
 .why summary { cursor: pointer; font-size: 0.88rem; color: var(--ink-2); padding: 6px 0; width: fit-content; min-height: 32px; text-decoration: underline; text-underline-offset: 3px; list-style: none; }
 .why summary::-webkit-details-marker { display: none; }
 .why p { font-size: 0.92rem; background: var(--soft); border-radius: 8px; padding: 10px 12px; margin-bottom: 4px; }
@@ -237,7 +236,7 @@ textarea { resize: vertical; line-height: 1.45; }
 /* ---------- study ---------- */
 .study { padding-top: 22px; gap: 14px; }
 .timer { font: 700 clamp(4.4rem, 26vw, 7.5rem)/1 var(--serif); letter-spacing: -0.02em; margin: 2px 0; }
-.check .answers { margin-top: 2px; }
+.checking .answers { margin-top: 2px; }
 
 /* ---------- beat, tune, misc ---------- */
 .duel { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--paper); }

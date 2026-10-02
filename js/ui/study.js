@@ -58,7 +58,7 @@ function nextUp(app, exam, pic) {
     h('div', { class: 'actions' },
       h('button', { class: 'btn primary wide', onclick: start }, 'Start the block'),
       h('a', { class: 'btn quiet', href: '#/plan' }, 'See the plan')),
-    rest.length ? h('p', { class: 'fine' }, 'After this: ', rest.map((r) => r.name).join(', '), pic.p.tonight.length > 4 ? ', …' : '', '.') : null,
+    rest.length ? h('p', { class: 'fine' }, 'After this: ', rest.map((r) => r.name).join(', '), pic.p.tonight.length > 4 ? ', …' : '.') : null,
     h('p', { class: 'fine' }, plural(pic.blocks, 'block'), ' left in your study time',
       pic.finishAt ? `. The plan ends at ${fmtTime(pic.finishAt)}.` : '.'));
 }
@@ -119,7 +119,7 @@ function checkScreen(app, exam, cur) {
     }
   });
 
-  return h('section', { class: 'screen study check' },
+  return h('section', { class: 'screen study checking' },
     h('p', { class: 'kicker' }, 'Block finished'),
     h('h1', null, 'Close the book.'),
     h('p', { class: 'lead' }, 'For one minute, say or write everything you remember from ', h('b', null, cur.chapter.name), '. Then answer honestly.'),

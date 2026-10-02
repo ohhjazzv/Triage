@@ -1,0 +1,22 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #faf7f2; color: #1b1b1f; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+.thumb { width: 1500px; height: 1000px; display: grid; grid-template-columns: 640px 1fr; gap: 40px; padding: 90px 90px 80px; align-items: center; }
+.brand { font: 700 44px/1 "Iowan Old Style", Palatino, Georgia, serif; display: flex; align-items: center; gap: 16px; margin-bottom: 56px; }
+.mark { display: inline-flex; gap: 6px; }
+.mark i { width: 26px; height: 26px; border-radius: 5px; display: block; }
+.mark i:nth-child(1) { background: #1b1b1f; } .mark i:nth-child(2) { background: #c8401a; } .mark i:nth-child(3) { border: 3px solid #55545c; }
+h1 { font: 700 104px/1.04 "Iowan Old Style", Palatino, Georgia, serif; letter-spacing: -0.02em; }
+.sub { font-size: 34px; line-height: 1.4; color: #55545c; margin-top: 44px; }
+.legend { list-style: none; display: flex; gap: 34px; margin-top: 48px; font-size: 28px; color: #55545c; }
+.legend li { display: flex; align-items: center; gap: 12px; }
+.right { background: #fffdf9; border: 2px solid #ddd6c9; border-radius: 22px; padding: 44px 46px; display: grid; gap: 23px; }
+.row { display: grid; grid-template-columns: 1fr auto; row-gap: 9px; align-items: baseline; }
+.name { font-size: 30px; font-weight: 650; }
+.tag { font-size: 25px; color: #55545c; }
+.tag.on { color: #c8401a; font-weight: 700; }
+.squares { grid-column: 1 / -1; display: flex; gap: 8px; }
+.sq { width: 40px; height: 40px; border-radius: 6px; display: inline-block; flex: none; }
+.legend .sq { width: 30px; height: 30px; border-radius: 5px; }
+.sq.have { background: #1b1b1f; }
+.sq.win { background-color: #c8401a; background-image: repeating-linear-gradient(135deg, transparent 0 8px, rgba(255,255,255,.62) 8px 12px); }
+.sq.later { border: 3.5px solid #55545c; opacity: .7; }
