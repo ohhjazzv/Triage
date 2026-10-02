@@ -1,2 +1,7 @@
 * text=auto eol=lf
 *.png binary
+
+# Third-party files are kept byte for byte.
+vendor/** -text
+*.gz binary
+*.jpg binary
