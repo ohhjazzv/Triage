@@ -38,6 +38,8 @@ The **Marks Map** shows the whole plan in one picture. Every square is one mark 
 Other things it does:
 
 - **Closed-book check.** After each block you close the book, recall for a minute, and tap how much came back. That answer corrects the plan.
+- **What to do in a block.** Each block shows three steps, chosen from how well you know the chapter: a first pass, practice questions, or polishing the parts you still get wrong.
+- **Off the phone.** Copy the plan as text or print it, so the phone can stay face down while you study.
 - **Beat the plan.** Move the blocks around yourself. The forecast updates live.
 - **Pin and drop.** Pin a chapter your teacher said is coming; drop one that is not in your exam. A pin shows what it costs.
 - **Class link.** The chapter list travels inside a link, so one person sets up the exam and the class opens it. The link never carries anyone's answers.
@@ -107,12 +109,12 @@ python3 -m http.server 8080     # or any static file server
 Tests (Node 22 or newer):
 
 ```
-npm test                 # 93 unit tests: engine, time, paste, storage, model
+npm test                 # 96 unit tests: engine, time, paste, storage, model
 node tests/robustness.js # the simulation table above
-node tests/e2e/run.mjs   # 24 browser tests, needs Playwright
+node tests/e2e/run.mjs   # 30 browser tests, needs Playwright
 ```
 
-The browser tests drive a real browser with a controlled clock: a full setup, a study block, the closed-book check, the sleep floor, the class link, offline use, and a check that no request ever leaves the app's own origin.
+The browser tests drive a real browser with a controlled clock: a full setup, a study block, the closed-book check, the sleep floor, a daytime exam, the class link, offline use, a browser that blocks storage, keyboard focus, and a check that no request ever leaves the app's own origin.
 
 ```
 index.html
@@ -142,6 +144,7 @@ Earlier work: the author's personal assistant "Taz OS" (1–2 October 2026) had 
 
 - Roediger, H. L., & Karpicke, J. D. (2006). Test-enhanced learning: Taking memory tests improves long-term retention. *Psychological Science*. Recalling without the book improved retention days later compared with rereading. Triage uses the closed-book check mainly as an honest measure of what stuck.
 - Newbury, C. R., Crowley, R., Rastle, K., & Tamminen, J. (2021). Sleep deprivation and memory: Meta-analytic reviews of studies on sleep deprivation before and after learning. *Psychological Bulletin*. Losing sleep after learning harms memory for what was learned.
+- Dunlosky, J., Rawson, K. A., Marsh, E. J., Nathan, M. J., & Willingham, D. T. (2013). Improving students' learning with effective learning techniques. *Psychological Science in the Public Interest*. Practice testing rated among the most useful techniques; rereading and highlighting among the least. The three steps shown in each block follow that.
 - Paruthi, S., et al. (2016). Recommended amount of sleep for pediatric populations: A consensus statement of the American Academy of Sleep Medicine. *Journal of Clinical Sleep Medicine*. Teenagers are advised 8 to 10 hours; Triage defaults to 8 and never plans under 6.
 
 ## Licence
