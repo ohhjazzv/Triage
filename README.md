@@ -21,7 +21,7 @@ Three mistakes: the wrong order, no rule for when to stop, and sleep paid as the
 
 ## What Triage does
 
-You paste your chapter list. For each chapter you answer one question: **"If a question from this chapter came right now?"** Blank, Bits, Most or Easy. You say when you can study and when you wake up.
+You paste your chapter list, or add a photo of it. For each chapter you answer one question: **"If a question from this chapter came right now?"** Blank, Bits, Most or Easy. You say when you can study and when you wake up.
 
 Triage then follows three rules.
 
@@ -37,6 +37,7 @@ The **Marks Map** shows the whole plan in one picture. Every square is one mark 
 
 Other things it does:
 
+- **A photo is enough.** Add a photo or a screenshot of the syllabus and Triage reads the chapters and marks from it, on your device. You check the list before it is used.
 - **Closed-book check.** After each block you close the book, recall for a minute, and tap how much came back. That answer corrects the plan.
 - **What to do in a block.** Each block shows three steps, chosen from how well you know the chapter: a first pass, practice questions, or polishing the parts you still get wrong.
 - **Off the phone.** Copy the plan as text or print it, so the phone can stay face down while you study.
@@ -62,11 +63,26 @@ Then it hands out your time one block at a time, always to the chapter where tha
 
 All of it is in [`js/engine.js`](js/engine.js), about 300 lines with comments.
 
-## Built with AI, runs without it
+## Built with AI. The plan is plain maths.
 
-There is no AI inside the running app. That was a decision. An earlier personal project of the author's put a small AI model in the browser, and in testing it invented chapter names and wrong facts. A plan someone bets an exam on should be something they can check. So the planning here is plain arithmetic, the "Why?" under every row shows the numbers, and the app can prove its own plan on your device.
+No AI makes the plan. That was a decision. An earlier personal project of the author's put a small AI model in the browser, and in testing it invented chapter names and wrong facts. A plan someone bets an exam on should be something they can check. So the planning here is plain arithmetic, the "Why?" under every row shows the numbers, and the app can prove its own plan on your device.
 
-AI is useful at the edge, for reading messy input. If you only have a photo of your syllabus, the setup screen gives you a short message to send to any AI chat you already use; you paste its answer back. No key, no server.
+Machine learning is used in one place, at the edge, for reading messy input: the photo of the syllabus. It only turns a picture into text, and the student checks that text before it is used.
+
+## Reading a photo
+
+Most students get their syllabus as a photo of a circular or a forwarded screenshot, so typing it out is the first thing that stops them. On the chapter screen you can add a photo, paste a screenshot, or drop a picture on the box.
+
+1. **Clean the picture** ([`js/clean.js`](js/clean.js), plain arithmetic, no AI). Turn the page straight, even out shadows, flip dark-mode screenshots, and remove the ruled lines of a table and the rows of dots between a name and its marks. Those are the things that make a text reader fail on a real photo.
+2. **Read the text** ([`js/ocr.js`](js/ocr.js)). This is [Tesseract](https://github.com/tesseract-ocr/tesseract), an open-source text reader with a small trained neural network, run in the browser by Tesseract.js. Its files are stored with the app in [`vendor/tesseract/`](vendor/tesseract/) (about 7 MB, fetched only when a photo is first added, then kept for offline use). The photo is never uploaded.
+3. **Tidy the text** (`tidyOcr` in [`js/parse.js`](js/parse.js), rules only). Drop the school's name, the table's header row and stray marks; turn `Light      7` into a chapter with 7 marks. Words the reader was only guessing at are left out.
+4. **You check it.** The result lands in the same box as typed text, with the same preview. If the reader was unsure, the app says the photo was hard to read.
+
+| A phone photo of a circular (a test picture) | What Triage reads from it |
+|---|---|
+| <img src="tests/e2e/fixtures/circular-photo.jpg" width="300" alt="A tilted, slightly blurred photo of a school circular with a table of 11 chapters and their marks"> | <img src="docs/screens/photo.png" width="300" alt="The chapter screen listing the 11 chapters with their marks"> |
+
+What it cannot do: handwriting, PDFs (take a screenshot of the page), and languages other than English. For those, the same screen offers a short message to send to any AI chat you already use, and you paste its answer back.
 
 ## How sure is this?
 
@@ -93,6 +109,7 @@ This section is in the app too (the "How sure?" screen).
 - Marks per chapter are often unknown. Without them the paper is split equally.
 - One exam is planned at a time. It does not yet balance several exams against each other across a week.
 - It plans time. It does not teach the chapter.
+- Photo reading is for printed or typed English. It has been tested on seven made-up pictures (a tilted phone photo of a table, a dark chat screenshot, rows of dots, a faint photocopy and others), not on a wide range of real photos. A blurred or badly lit photo will come out wrong, which is why the list is always shown for checking.
 - Nothing is synced. Clearing browser data clears your exams (there is a backup file on the Exams screen).
 
 Next: planning a whole exam week, a QR code for the class link, more languages.
@@ -109,19 +126,22 @@ python3 -m http.server 8080     # or any static file server
 Tests (Node 22 or newer):
 
 ```
-npm test                 # 96 unit tests: engine, time, paste, storage, model
+npm test                 # 111 unit tests: engine, time, paste, photo clean-up, storage, model
 node tests/robustness.js # the simulation table above
-node tests/e2e/run.mjs   # 30 browser tests, needs Playwright
+node tests/e2e/run.mjs   # 35 browser tests, needs Playwright
 ```
 
-The browser tests drive a real browser with a controlled clock: a full setup, a study block, the closed-book check, the sleep floor, a daytime exam, the class link, offline use, a browser that blocks storage, keyboard focus, and a check that no request ever leaves the app's own origin.
+The browser tests drive a real browser with a controlled clock: a full setup, a study block, the closed-book check, the sleep floor, a daytime exam, the class link, offline use, a browser that blocks storage, keyboard focus, reading seven test pictures (made by `tests/e2e/make-fixtures.mjs`), and a check that no request ever leaves the app's own origin, including while a photo is being read.
 
 ```
 index.html
 css/app.css
 js/engine.js     the maths: plan, verify, checkIn, range, squares
 js/time.js       sessions, the sleep wall, clock times
-js/parse.js      smart paste for messy syllabus text
+js/parse.js      smart paste for messy syllabus text, and tidying text read from a photo
+js/clean.js      photo clean-up: straighten, even out light, remove table lines and dots
+js/ocr.js        runs the text reader on the cleaned photo
+vendor/tesseract the text reader itself (third-party, Apache-2.0)
 js/store.js      saving, backup, the class link
 js/model.js      exam + time -> everything a screen shows
 js/ui/           one file per screen
@@ -136,7 +156,7 @@ This project was built with heavy use of AI, and the hackathon rules ask for tha
 
 - **Claude (Anthropic), in Cowork**, helped choose the idea, wrote the engine prototype, and wrote most of the code, the tests and the first drafts of these documents.
 - **Jaz** brought the problem from his own exam week, chose to enter solo, set the rule that sleep is never planned under 6 hours, asked for the weak spots of the idea to be closed, and reviewed the result.
-- **No AI runs inside the app.**
+- **Inside the app:** no AI makes the plan. One optional feature, reading a photo of the syllabus, uses Tesseract, an open-source text reader with a small trained neural network. It runs in the browser on the student's own device and sends nothing anywhere.
 
 Earlier work: the author's personal assistant "Taz OS" (1–2 October 2026) had a simple exam-eve list that led to this idea. `prototype/` holds the first sketch of the engine.
 
@@ -150,3 +170,5 @@ Earlier work: the author's personal assistant "Taz OS" (1–2 October 2026) had 
 ## Licence
 
 MIT. See [LICENSE](LICENSE).
+
+Third-party code: the text reader in [`vendor/tesseract/`](vendor/tesseract/) is Tesseract.js and tesseract.js-core (Apache-2.0) with the English model from tessdata_best (Apache-2.0). Their licences are in that folder.
