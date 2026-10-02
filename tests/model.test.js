@@ -93,6 +93,18 @@ test('moving bedtime trades sleep for blocks, and the floor holds', () => {
   assert.equal(two.blocks, 4); assert.equal(two.wall.getHours(), 0);
 });
 
+test('the words follow the clock: tonight, today, or a plan over several days', () => {
+  const base = { name: 'x', total: 30, wake: '06:00', sleepHours: 8, chapters: [{ name: 'A', know: 'bits' }, { name: 'B', know: 'blank' }] };
+  const evening = cleanExam({ ...base, at: '2026-10-05T08:00', sessions: [{ day: '2026-10-04', start: '18:00', end: null }] });
+  assert.equal(picture(evening, atDay('2026-10-04', toMinutes('18:00'))).when, 'tonight');
+  const morning = cleanExam({ ...base, at: '2026-10-04T14:00', sessions: [{ day: '2026-10-04', start: '08:00', end: null }] });
+  const pm = picture(morning, atDay('2026-10-04', toMinutes('08:00')));
+  assert.equal(pm.when, 'today'); assert.equal(pm.words.not, 'Not today');
+  const twoDays = cleanExam({ ...base, at: '2026-10-06T08:00', sessions: [{ day: '2026-10-04', start: '18:00', end: null }, { day: '2026-10-05', start: '16:00', end: null }] });
+  const p2 = picture(twoDays, atDay('2026-10-04', toMinutes('18:00')));
+  assert.equal(p2.when, 'plan'); assert.equal(p2.words.order, 'Study, in this order');
+});
+
 test('chapters without marks share the paper equally', () => {
   const exam = cleanExam({ name: 'x', at: '2026-10-05T08:00', total: 60, wake: '06:00', sleepHours: 8,
     sessions: [{ day: '2026-10-04', start: '18:00', end: null }],

@@ -80,6 +80,16 @@ test('no session runs past the exam', () => {
   assert.equal(windows(exam({ at: '2026-10-04T12:00' }), at('2026-10-04', '18:00')).length, 0);   // exam already over
 });
 
+test('the last minutes before the exam are kept free for recall', () => {
+  const e = exam({ at: '2026-10-04T14:00', morningMin: 20, sessions: [{ day: '2026-10-04', start: '08:00', end: null }] });
+  const w = windows(e, at('2026-10-04', '08:00'));
+  assert.deepEqual(w[0].end, at('2026-10-04', '13:40')); assert.equal(w[0].minutes, 340); assert.equal(w[0].blocks, 11); assert.equal(w[0].hitWall, false);
+  for (const s of timeline([{ id: 'a', blocks: w[0].blocks }], w)[0].slots) assert.ok(s.end <= at('2026-10-04', '13:40'));
+  // the evening before, bedtime comes first, so nothing changes
+  const eve = windows(exam({ morningMin: 20 }), at('2026-10-04', '18:00'));
+  assert.equal(eve[0].blocks, 8); assert.equal(eve[0].hitWall, true);
+});
+
 test('several sessions over several days, in time order', () => {
   const e = exam({ sessions: [
     { day: '2026-10-04', start: '15:00', end: '17:00' },

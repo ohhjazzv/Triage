@@ -16,6 +16,12 @@ export function currentBlock(exam, now) {
   return { chapter, started, ends, minutes: exam.current.minutes, over: now >= ends, left: Math.max(0, ends - now) };
 }
 
+export const WORDS = {
+  tonight: { order: 'Tonight, in this order', not: 'Not tonight', tag: 'not tonight', legend: 'tonight', spoken: 'tonight' },
+  today: { order: 'Today, in this order', not: 'Not today', tag: 'not today', legend: 'today', spoken: 'today' },
+  plan: { order: 'Study, in this order', not: 'Not this time', tag: 'not this time', legend: 'this plan', spoken: 'in this plan' },
+};
+
 const shifted = (chapters, dm, k) => chapters.map((c) => ({ ...c, m: Math.min(CEIL, Math.max(0.02, masteryNow(c) + dm)), tau: tauNow(c) * k }));
 
 export function picture(exam, now) {
@@ -47,12 +53,18 @@ export function picture(exam, now) {
   };
   const withPlan = { mid: p.after, ...range(chapters, p.split) };
 
+  // Is this plan for tonight, for today, or spread over several days? The screens choose their words from this.
+  const used = wins.filter((w) => w.blocks > 0);
+  const days = new Set(used.map((w) => w.start.toDateString()));
+  const hour = used.length ? used[0].start.getHours() : now.getHours();
+  const when = days.size > 1 ? 'plan' : (hour >= 16 || hour < 4) ? 'tonight' : 'today';
+
   const examAt = exam.at ? new Date(exam.at) : null;
   const wall = wins.length ? wins[0].wall : null;
   const lastSlot = tl.length ? tl[tl.length - 1].slots.at(-1) : null;
 
   return {
-    exam, now, chapters, cur, wins, blocks, studyMinutes, p, tl,
+    exam, now, chapters, cur, wins, blocks, studyMinutes, p, tl, when, words: WORDS[when],
     forecasts: { stopNow, book, withPlan },
     sq: squares(chapters, p),
     examAt, wall,

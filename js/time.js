@@ -79,7 +79,9 @@ export function windows(exam, now) {
     let hitWall = false;
     if (end > wall) { end = wall; hitWall = true; }
     if (endMin == null) hitWall = true;
-    if (examAt && end > examAt) { end = examAt; hitWall = false; }
+    // The last minutes before the exam are kept for recall, not for new chapters.
+    const cut = examAt ? new Date(examAt.getTime() - (exam.morningMin || 0) * MIN) : null;
+    if (cut && end > cut) { end = cut; hitWall = false; }
     const from = start > now ? start : now;
     const minutes = Math.max(0, Math.floor((end - from) / MIN));
     out.push({ start: from, end, wall, hitWall, minutes, blocks: blocksIn(minutes), session: s });
