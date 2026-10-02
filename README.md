@@ -8,6 +8,8 @@
 
 Built for the [CSC Back-to-School Hackathon](https://csc-back-to-school.devpost.com/) (October 2026).
 
+![The start page on a laptop](docs/screens/start-laptop.png)
+
 ## The problem
 
 It is the evening before an exam. You have 12 chapters and 4 hours. Most students do the same thing:
@@ -128,10 +130,10 @@ Tests (Node 22 or newer):
 ```
 npm test                 # 111 unit tests: engine, time, paste, photo clean-up, storage, model
 node tests/robustness.js # the simulation table above
-node tests/e2e/run.mjs   # 35 browser tests, needs Playwright
+node tests/e2e/run.mjs   # 36 browser tests, needs Playwright
 ```
 
-The browser tests drive a real browser with a controlled clock: a full setup, a study block, the closed-book check, the sleep floor, a daytime exam, the class link, offline use, a browser that blocks storage, keyboard focus, reading seven test pictures (made by `tests/e2e/make-fixtures.mjs`), and a check that no request ever leaves the app's own origin, including while a photo is being read.
+The browser tests drive a real browser with a controlled clock: the start page, a full setup, a study block, the closed-book check, the sleep floor, a daytime exam, the class link, offline use, a browser that blocks storage, keyboard focus, reading seven test pictures (made by `tests/e2e/make-fixtures.mjs`), and a check that no request ever leaves the app's own origin, including while a photo is being read.
 
 ```
 index.html
