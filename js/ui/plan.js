@@ -1,10 +1,10 @@
-// The plan: the Marks Map, three forecasts, Tonight, Not tonight.
+// The plan: the Marks Map, three forecasts, what to study in order, and what to leave.
 
-import { h, marks, gain, whole, span, pct, plural } from './dom.js';
+import { h, marks, gain, whole, span, pct, plural, copyText } from './dom.js';
 import { marksMap } from './map.js';
 import { after } from './after.js';
 import { picture } from '../model.js';
-import { fmtTime, fmtDur, fmtDay, fmtUntil } from '../time.js';
+import { fmtTime, fmtDur, fmtDay, fmtUntil, dayOf } from '../time.js';
 import { biologySample } from '../samples.js';
 import { BLOCK } from '../engine.js';
 
@@ -36,9 +36,8 @@ function tonight(pic) {
   const { p, tl } = pic;
   if (!p.tonight.length) return null;
   const times = new Map(tl.map((t) => [t.id, t.stretches]));
-  const multiDay = pic.wins.filter((w) => w.blocks > 0).length > 1;
   return h('section', { class: 'list-block' },
-    h('h2', null, multiDay ? 'Study, in this order' : 'Tonight, in this order'),
+    h('h2', null, pic.words.order),
     h('ol', { class: 'rows numbered' }, p.tonight.map((r, i) => h('li', { class: 'row' },
       h('div', { class: 'row-main' },
         h('span', { class: 'row-n', 'aria-hidden': 'true' }, i + 1),
@@ -53,22 +52,31 @@ function tradeText(s, p) {
   const lead = s.m >= 0.75 ? 'You already have most of these marks. ' : '';
   if (p.blocksGiven === 0) return 'No study time left.';
   if (p.stop === 'enough' && p.blocksSpare > 0) {
-    return `${lead}${BLOCK} minutes here would add about ${gain(s.firstBlock)} marks. That is under the Enough line (${gain(p.enough)}), so it is not worth staying up for.`;
+    return `${lead}${BLOCK} minutes here would add about ${gain(s.firstBlock)} marks. That is under the Enough line (${gain(p.enough)}), so it is not worth another block.`;
   }
   if (s.trade) return `${lead}${BLOCK} minutes here adds about ${gain(s.firstBlock)} marks. The same ${BLOCK} minutes adds ${gain(s.trade.gain)} in ${s.trade.name}.`;
   return `${lead}${BLOCK} minutes here would add about ${gain(s.firstBlock)} marks.`;
 }
 
+function skipRow(s, p) {
+  return h('li', { class: 'row' },
+    h('div', { class: 'row-main' },
+      h('span', { class: 'row-name' }, s.name),
+      h('span', { class: 'row-gain muted' }, plural(marks(s.w), 'mark'))),
+    h('p', { class: 'row-sub' }, tradeText(s, p)));
+}
+
 function notTonight(pic) {
   const { p } = pic;
   if (!p.skip.length) return null;
+  // The chapters that came closest to making the plan go first. A long list is folded.
+  const rows = [...p.skip].sort((a, b) => (a.dropped - b.dropped) || (b.firstBlock - a.firstBlock));
+  const shown = rows.length > 7 ? rows.slice(0, 5) : rows, folded = rows.slice(shown.length);
   return h('section', { class: 'list-block' },
-    h('h2', null, 'Not tonight'),
-    h('ul', { class: 'rows' }, p.skip.map((s) => h('li', { class: 'row' },
-      h('div', { class: 'row-main' },
-        h('span', { class: 'row-name' }, s.name),
-        h('span', { class: 'row-gain muted' }, plural(marks(s.w), 'mark'))),
-      h('p', { class: 'row-sub' }, tradeText(s, p))))),
+    h('h2', null, pic.words.not),
+    h('ul', { class: 'rows' }, shown.map((s) => skipRow(s, p))),
+    folded.length ? h('details', { class: 'fold' }, h('summary', null, `Show ${folded.length} more`),
+      h('ul', { class: 'rows' }, folded.map((s) => skipRow(s, p)))) : null,
     h('p', { class: 'fine' }, 'Leaving these is the plan, not a failure. They are saved to your catch-up list for after the exam.'));
 }
 
@@ -89,6 +97,7 @@ function stopNote(app, pic) {
   if (p.stop === 'time' && pic.wins.at(-1)?.hitWall && pic.wall) {
     return h('p', { class: 'note' }, `The plan uses all your study time. Bedtime is ${fmtTime(pic.wins.at(-1).wall)}. `, h('a', { href: '#/time' }, 'Change study time'));
   }
+  if (p.stop === 'time') return h('p', { class: 'note' }, 'The plan uses all your study time. ', h('a', { href: '#/time' }, 'Change study time'));
   return null;
 }
 
@@ -99,11 +108,27 @@ function morning(pic) {
   const spare = Math.max(0, exam.morningMin - recall.length * 2);
   const skim = p.skip.filter((s) => !s.dropped && s.m < 0.75).sort((a, b) => b.firstBlock - a.firstBlock).slice(0, Math.floor(spare / 5));
   if (!recall.length && !skim.length) return null;
+  const sameDay = pic.examAt && dayOf(pic.examAt) === dayOf(pic.now);
   return h('section', { class: 'list-block' },
-    h('h2', null, `Exam morning, ${exam.morningMin} min`),
-    h('p', { class: 'fine' }, 'No new chapters in the morning.'),
+    h('h2', null, sameDay ? `Last ${exam.morningMin} minutes before the exam` : `Exam morning, ${exam.morningMin} min`),
+    h('p', { class: 'fine' }, sameDay ? 'No new chapters now. This time is kept free in the plan.' : 'No new chapters in the morning.'),
     recall.length ? h('p', null, h('b', null, 'Recall, book closed: '), recall.map((r) => r.name).join(', '), '.') : null,
     skim.length ? h('p', null, h('b', null, 'Skim, 5 minutes each (headings, bold words, summary): '), skim.map((r) => r.name).join(', '), '.') : null);
+}
+
+/** The plan as plain text, to paste into notes or a chat, so the phone can go face down. */
+export function planText(pic) {
+  const { exam, p, tl } = pic;
+  const times = new Map(tl.map((t) => [t.id, t.stretches]));
+  const lines = [`${exam.name}${pic.examAt ? ` (${fmtDay(pic.examAt, pic.now)}, ${fmtTime(pic.examAt)})` : ''}`, '', pic.words.order + ':'];
+  p.tonight.forEach((r, i) => lines.push(`${i + 1}. ${r.name}: ${fmtDur(r.minutes)}, ${stretchText(times.get(r.id) || [])}`));
+  const skipped = p.skip.filter((s) => !s.dropped);
+  if (skipped.length) lines.push('', `${pic.words.not}: ${skipped.map((s) => s.name).join(', ')}`);
+  lines.push('', 'After every 25 minutes: close the book and say what you remember.');
+  if (pic.finishAt) lines.push(`Stop at ${fmtTime(pic.finishAt)}.` + (pic.wins.some((w) => w.hitWall) && pic.wall ? ` Bedtime ${fmtTime(pic.wall)}.` : ''));
+  if (exam.morningMin) lines.push(`Before the exam: ${exam.morningMin} minutes of recall, no new chapters.`);
+  lines.push('', `Forecast: about ${whole(pic.forecasts.withPlan.mid)} of ${whole(p.total)} (an estimate).`, 'Made with Triage.');
+  return lines.join('\n');
 }
 
 function sampleBanner(app, pic) {
@@ -130,9 +155,17 @@ export function planScreen(app) {
 
   const canStart = pic.p.tonight.length > 0 || !!pic.cur;
   const when = pic.examAt ? `${fmtDay(pic.examAt, now)}, ${fmtTime(pic.examAt)} · ${fmtUntil(pic.examAt, now)}` : '';
+  const hitsBedtime = pic.wins.some((w) => w.blocks > 0 && w.hitWall);
   const timeLine = pic.blocks > 0
     ? h('p', { class: 'time-line' }, h('b', null, plural(pic.blocks, 'block')), ` · ${fmtDur(pic.studyMinutes)} of study`,
-      pic.wall ? ` · bedtime ${fmtTime(pic.wall)}` : '', ' ', h('a', { href: '#/time' }, 'Change'))
+      hitsBedtime && pic.wall ? ` · bedtime ${fmtTime(pic.wall)}` : '', ' ', h('a', { href: '#/time' }, 'Change'))
+    : null;
+
+  const copied = h('span', { class: 'fine', role: 'status' });
+  const offPhone = pic.p.tonight.length
+    ? h('p', { class: 'fine off-phone' }, 'Phones distract. ',
+      h('button', { class: 'link', onclick: async () => { copied.textContent = (await copyText(planText(pic))) ? ' Copied. Paste it into your notes.' : ' Could not copy.'; } }, 'Copy the plan'),
+      ' or ', h('button', { class: 'link', onclick: () => window.print() }, 'print it'), ', then put the phone face down.', copied)
     : null;
 
   const running = pic.cur
@@ -160,7 +193,7 @@ export function planScreen(app) {
       h('h2', null, 'You are done.'),
       h('p', null, pic.p.stop === 'enough'
         ? `The next ${BLOCK} minutes would add about ${gain(pic.p.next?.gain || 0)} marks. Rest is worth more now.`
-        : 'There is nothing left to gain in these chapters tonight.'),
+        : 'There is nothing left to gain in these chapters right now.'),
       pic.p.stop === 'enough' ? h('button', { class: 'link', onclick: () => app.update((e) => { e.keepGoing = true; }) }, 'Keep going anyway') : null)
     : null;
 
@@ -176,7 +209,7 @@ export function planScreen(app) {
       h('div', { class: 'col-a' }, h('div', { class: 'card' }, marksMap(pic)), forecastTrio(pic)),
       h('div', { class: 'col-b' },
         empty, done,
-        tonight(pic), stopNote(app, pic), notTonight(pic), morning(pic),
+        tonight(pic), offPhone, stopNote(app, pic), notTonight(pic), morning(pic),
         h('nav', { class: 'more-actions', 'aria-label': 'More' },
           h('a', { class: 'btn', href: '#/beat' }, 'Beat the plan'),
           h('a', { class: 'btn', href: '#/tune' }, 'Fine-tune'),

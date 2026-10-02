@@ -237,6 +237,14 @@ textarea { resize: vertical; line-height: 1.45; }
 .study { padding-top: 22px; gap: 14px; }
 .timer { font: 700 clamp(4.4rem, 26vw, 7.5rem)/1 var(--serif); letter-spacing: -0.02em; margin: 2px 0; }
 .checking .answers { margin-top: 2px; }
+.method { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; }
+.method-kind { font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.steps { display: grid; gap: 6px; }
+.steps li { display: grid; grid-template-columns: 62px 1fr; gap: 8px; }
+.steps b { color: var(--ink-2); font-weight: 600; }
+.fold summary { cursor: pointer; padding: 10px 0; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; color: var(--ink-2); }
+.fold .rows { border-top: 0; }
+.off-phone .link { padding: 0; min-height: 0; }
 
 /* ---------- beat, tune, misc ---------- */
 .duel { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--paper); }
@@ -285,6 +293,14 @@ textarea { resize: vertical; line-height: 1.45; }
 }
 
 @media print {
-  .top-nav, .bar, .more-actions, .foot, .banner, .actions { display: none !important; }
-  body { background: #fff; color: #000; }
+  .top-nav, .bar, .more-actions, .foot, .banner, .actions, .head-cta, .off-phone, .why, .forecast .fine, .callout, .skip { display: none !important; }
+  :root { --bg: #fff; --paper: #fff; --soft: #fff; --ink: #000; --ink-2: #333; --line: #999; --accent: #000; --accent-soft: #fff; --hatch: rgba(255, 255, 255, 0.7); }
+  body { background: #fff; color: #000; font-size: 12pt; }
+  .screen.plan { max-width: none; padding: 0; }
+  .plan-grid { grid-template-columns: 1fr 1fr; gap: 24px; }
+  .col-a { position: static; }
+  .sq { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .sq.win { animation: none; }
+  .fold > .rows { display: block; }
+  .row, .map-row { break-inside: avoid; }
 }
