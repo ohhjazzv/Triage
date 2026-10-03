@@ -54,15 +54,25 @@ function clock(ms) {
 }
 
 // A short, quiet tone when a block ends. No sound file, no network.
-function beep() {
+// Browsers (Safari above all) only let a page make sound after a tap, so the sound is switched on
+// by the tap on "Start the block" and the same switch is used when the block ends.
+let sound = null;
+function primeSound() {
   try {
     const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return;
-    const ctx = new Ctx(), osc = ctx.createOscillator(), gain = ctx.createGain();
+    if (!sound || sound.state === 'closed') sound = new Ctx();
+    if (sound.state === 'suspended') sound.resume();
+  } catch { /* sound is a bonus */ }
+}
+function beep() {
+  try {
+    primeSound();
+    const ctx = sound; if (!ctx) return;
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
     osc.frequency.value = 660; gain.gain.setValueAtTime(0.0001, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.02);
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.6);
     osc.connect(gain).connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.65);
-    osc.onended = () => ctx.close();
   } catch { /* sound is a bonus */ }
   try { navigator.vibrate?.([200, 100, 200]); } catch { /* so is a buzz */ }
 }
@@ -74,6 +84,7 @@ function nextUp(app, exam, pic) {
   if (!first) return doneScreen(app, exam, pic);
   const rest = pic.p.tonight.slice(1, 4);
   const start = () => app.update((e) => {
+    primeSound();
     e.current = { chapterId: first.id, startedAt: app.now(e).toISOString(), minutes: BLOCK };
     e.notice = null;
   });
@@ -160,7 +171,9 @@ function checkScreen(app, exam, cur) {
 function doneScreen(app, exam, pic) {
   const studied = exam.log.reduce((a, l) => a + l.minutes, 0);
   let reason;
-  if (pic.blocks === 0) reason = pic.wall ? `It is bedtime (${fmtTime(pic.wall)}). Sleep is part of the plan.` : 'Your study time is used up.';
+  const lastWin = pic.wins[pic.wins.length - 1];
+  const atBedtime = pic.wall && (!lastWin || lastWin.hitWall || pic.now >= pic.wall);
+  if (pic.blocks === 0) reason = atBedtime ? `It is bedtime (${fmtTime(pic.wall)}). Sleep is part of the plan.` : 'Your study time is used up.';
   else if (pic.p.stop === 'enough') reason = `The next ${BLOCK} minutes would add about ${gain(pic.p.next?.gain || 0)} marks. Rest is worth more now.`;
   else reason = 'There is nothing left to gain in these chapters tonight.';
   const canKeepGoing = pic.blocks > 0 && pic.p.stop === 'enough';
@@ -168,7 +181,7 @@ function doneScreen(app, exam, pic) {
     h('p', { class: 'kicker' }, studied ? `${fmtDur(studied)} studied` : 'Tonight'),
     h('h1', null, 'You are done.'),
     h('p', { class: 'lead' }, reason),
-    exam.morningMin ? h('p', null, `Tomorrow morning: ${exam.morningMin} minutes of recall, book closed. No new chapters.`) : null,
+    exam.morningMin && !pic.over ? h('p', null, `${pic.examAt && pic.examAt.toDateString() === pic.now.toDateString() ? 'Before the exam' : 'On exam morning'}: ${exam.morningMin} minutes of recall, book closed. No new chapters.`) : null,
     h('div', { class: 'actions' },
       h('a', { class: 'btn primary', href: '#/plan' }, 'See where you stand'),
       canKeepGoing ? h('button', { class: 'btn quiet', onclick: () => app.update((e) => { e.keepGoing = true; }) }, 'Keep going anyway') : null));
