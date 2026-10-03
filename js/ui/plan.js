@@ -94,8 +94,9 @@ function stopNote(app, pic) {
         `After that, another ${BLOCK} minutes would add about ${gain(p.next.gain)} marks. Rest is worth more.`),
       h('button', { class: 'link', onclick: () => app.update((e) => { e.keepGoing = true; }) }, 'Keep going anyway'));
   }
-  if (p.stop === 'time' && pic.wins.at(-1)?.hitWall && pic.wall) {
-    return h('p', { class: 'note' }, `The plan uses all your study time. Bedtime is ${fmtTime(pic.wins.at(-1).wall)}. `, h('a', { href: '#/time' }, 'Change study time'));
+  const lastWin = pic.wins[pic.wins.length - 1];
+  if (p.stop === 'time' && lastWin?.hitWall && pic.wall) {
+    return h('p', { class: 'note' }, `The plan uses all your study time. Bedtime is ${fmtTime(lastWin.wall)}. `, h('a', { href: '#/time' }, 'Change study time'));
   }
   if (p.stop === 'time') return h('p', { class: 'note' }, 'The plan uses all your study time. ', h('a', { href: '#/time' }, 'Change study time'));
   return null;

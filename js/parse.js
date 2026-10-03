@@ -14,7 +14,7 @@
 const MAX_CHAPTERS = 60;
 const MAX_NAME = 80;
 
-const SIZE_WORDS = { s: 'S', small: 'S', short: 'S', m: 'M', medium: 'M', mid: 'M', l: 'L', large: 'L', long: 'L', big: 'L' };
+const SIZE_WORDS = Object.assign(Object.create(null), { s: 'S', small: 'S', short: 'S', m: 'M', medium: 'M', mid: 'M', l: 'L', large: 'L', long: 'L', big: 'L' });
 
 function readSize(text) {
   const k = String(text || '').trim().toLowerCase();

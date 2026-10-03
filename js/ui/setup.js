@@ -217,6 +217,7 @@ function timeForm(t, now, forecast) {
     const wall = bedtimeAfter(first > now ? first : now, t.wake, t.sleepHours);
     const lines = [];
     if (blocks > 0) lines.push(h('p', { class: 'big' }, `You have ${fmtDur(minutes)}. `, h('b', null, `That is ${plural(blocks, 'block')}.`)));
+    else if (candidate().at && new Date(candidate().at) <= now) lines.push(h('p', { class: 'big' }, 'The exam time has already passed.'), h('p', { class: 'fine' }, 'Go back to the first screen and check the date and time.'));
     else lines.push(h('p', { class: 'big' }, 'No study time fits before bedtime.'), h('p', { class: 'fine' }, 'Start earlier, add a session, or move bedtime. Sleep never goes under 6 hours.'));
     lines.push(h('p', { class: 'fine' }, `Bedtime ${fmtTime(wall)} · ${fmtDur(t.sleepHours * 60)} of sleep · one block is 25 minutes, then a 5 minute break.`));
     const f = forecast ? forecast(t) : null;
@@ -263,7 +264,7 @@ function timeForm(t, now, forecast) {
         t.sessions.length > 1 ? h('button', { class: 'link', type: 'button', onclick: () => { t.sessions.splice(i, 1); paintList(); paintSummary(); } }, 'Remove') : null);
     }),
     h('button', { class: 'link', type: 'button', onclick: () => {
-      const lastDay = t.sessions.at(-1)?.day || today, next = dayOf(new Date(atDay(lastDay, 0).getTime() + DAY));
+      const lastDay = t.sessions[t.sessions.length - 1]?.day || today, next = dayOf(new Date(atDay(lastDay, 0).getTime() + DAY));
       t.sessions.push({ day: opts.some((o) => o.value === next) ? next : lastDay, start: '16:00', end: null }); paintList(); paintSummary();
     } }, '+ Add another study session'));
   }

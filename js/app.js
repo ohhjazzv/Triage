@@ -59,22 +59,20 @@ const app = {
   render,
 };
 
-const ROUTES = {
+const ROUTES = Object.assign(Object.create(null), {
   '': home, setup, time: timeScreen, plan: planScreen, study, beat, tune, sure, after, exams, share,
-};
+});
 
 function render() {
   for (const fn of leaving) { try { fn(); } catch { /* a timer that is already gone */ } }
   leaving = [];
 
-  // A class link looks like  #x=....
+  // A class link looks like  #x=....  It stays in the address bar, so it still works after a refresh.
   const hash = location.hash || '';
-  if (hash.startsWith('#x=')) {
-    app.shared = decodeShare(hash.slice(3));
-    history.replaceState(null, '', location.pathname + location.search + '#/shared');
-  }
+  const viaLink = hash.startsWith('#x=');
+  if (viaLink) app.shared = decodeShare(hash.slice(3));
 
-  const [name = '', arg] = (location.hash || '#/').replace(/^#\/?/, '').split('/');
+  const [name = '', arg] = viaLink ? ['shared'] : hash.replace(/^#\/?/, '').split('/');
   let view = ROUTES[name];
   if (name === 'shared') view = (a) => exams(a, { shared: true });
   if (!view) view = home;
@@ -117,8 +115,22 @@ window.addEventListener('hashchange', render);
 // If another tab changes the saved data, pick it up.
 window.addEventListener('storage', (e) => { if (e.key === 'triage-v1') { app.state = load(storage); render(); } });
 if (!kept) document.getElementById('save-note').hidden = false;
+
+// "Skip to content" moves the keyboard to the screen. (Left alone, its #main would look like an address to the router.)
+document.querySelector('.skip')?.addEventListener('click', (e) => { e.preventDefault(); main.focus(); });
+
+// The sample exam runs on its own clock. Once that clock passes its exam, the sample has had its day:
+// clear it, so a returning visitor gets the start page and not "after the exam" for a test they never sat.
+{
+  const stale = app.state.exams.filter((e) => e.sample && e.at && app.now(e) >= new Date(e.at));
+  if (stale.length) {
+    app.state.exams = app.state.exams.filter((e) => !stale.includes(e));
+    if (!app.exam()) app.state.active = app.state.exams[0]?.id ?? null;
+    app.save();
+  }
+}
 // Opening Triage with an exam already saved goes straight to its plan. The logo always leads to the start page.
-if (!location.hash && app.exam()) history.replaceState(null, '', location.pathname + location.search + '#/plan');
+if (!location.hash && app.exam()) { try { history.replaceState(null, '', location.pathname + location.search + '#/plan'); } catch { /* some embedded views do not allow it; the start page is fine */ } }
 render();
 
 // Works offline after the first visit.
