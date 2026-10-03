@@ -339,6 +339,9 @@ await test('class link: carries the chapter list and nothing personal', async ({
   await other.page.goto(link);
   await other.page.locator('.kicker', { hasText: 'Shared exam' }).waitFor();
   expect((await other.page.locator('.card').innerText()).includes('8 chapters'), 'shared card wrong');
+  await other.page.reload();                                             // a refresh must not lose the shared exam
+  await other.page.locator('.kicker', { hasText: 'Shared exam' }).waitFor();
+  expect(other.page.url() === link, 'the class link did not stay in the address bar');
   await other.page.getByRole('button', { name: 'Use it' }).click();
   expect((await other.page.locator('.count').innerText()) === 'Chapter 1 of 8', 'should land on the rating cards');
   expect(await other.page.locator('.answer.on').count() === 0, 'a rating travelled in the link');
@@ -352,17 +355,55 @@ await test('a broken class link is refused politely', async ({ page }) => {
 });
 
 await test('after the exam: catch-up list, real marks against the forecast', async ({ page }) => {
-  await loadSample(page);
+  await setupExam(page);                                                 // Physics test, tomorrow 8:00 AM
   await page.clock.fastForward('15:00:00');                              // past the exam next morning
   await page.reload();
   await page.locator('.after h1').waitFor();
   const names = await page.locator('.after ol.rows .row-name').allInnerTexts();
-  expect(names.length === 5 && names[0] === 'Respiration', 'catch-up list: ' + names.join(', '));
-  await page.getByLabel(/Your real marks/).fill('23');
+  expect(names.length >= 1 && names.every((n) => ['Light', 'Electricity', 'Magnetism', 'Sound'].includes(n)), 'catch-up list: ' + names.join(', '));
+  await page.getByLabel(/Your real marks/).fill('14');
   await page.getByRole('button', { name: 'Save' }).click();
-  expect((await text(page, '.after .big')).includes('Real: 23'), 'verdict: ' + await text(page, '.after .big'));
-  expect((await state(page)).exams[0].result.marks === 23, 'result not saved');
+  expect((await text(page, '.after .big')).includes('Real: 14'), 'verdict: ' + await text(page, '.after .big'));
+  expect((await state(page)).exams[0].result.marks === 14, 'result not saved');
   await shot(page, 'after', true);
+});
+
+await test('a sample left overnight is cleared, so a returning visitor gets the start page', async ({ page }) => {
+  await loadSample(page);
+  await page.clock.fastForward('15:00:00');                              // the sample's own exam time has passed
+  await page.goto(BASE);
+  await page.locator('h1', { hasText: 'Know what to study' }).waitFor();
+  expect(await page.locator('.resume').count() === 0, 'the expired sample is still offered');
+  expect((await state(page)).exams.length === 0, 'the expired sample is still saved');
+  expect(await page.getByRole('button', { name: 'Plan my exam' }).isVisible(), 'no way to start');
+});
+
+await test('twelve chapters all rated the same still get a plan that uses the evening', async ({ page }) => {
+  // Bug found on 4 Oct: with many chapters each block is a small share of the paper, and the plan stopped at zero blocks.
+  const twelve = Array.from({ length: 12 }, (_, i) => 'Chapter ' + (i + 1) + ' topic').join('\n');
+  for (const answer of ['Most', 'Bits', 'Blank']) {
+    await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear(); } catch { /* first run */ } });
+    await setupExam(page, { chapters: twelve, answers: [answer] });
+    const trio = (await page.locator('.trio-n').allInnerTexts()).map(Number);
+    expect(trio[2] > trio[0], `all ${answer}: the plan adds nothing (${trio})`);
+    expect(trio[1] <= trio[2], `all ${answer}: book order (${trio[1]}) is shown above the plan (${trio[2]})`);
+    expect(await page.locator('.tonight .row, .plan ol.rows > li').count() >= 1, `all ${answer}: no chapters in tonight's list`);
+    expect(!(await page.locator('body').innerText()).includes('You are done'), `all ${answer}: told "you are done" before starting`);
+  }
+});
+
+await test('odd addresses and the skip link behave', async ({ page }) => {
+  await loadSample(page);
+  for (const odd of ['#/constructor', '#/toString', '#/__proto__', '#/nope', '#//']) {
+    await page.goto(BASE + odd); await page.waitForTimeout(60);
+    expect(!(await page.locator('main').innerText()).includes('[object'), odd + ' shows raw object text');
+    expect(await page.locator('main h1').count() === 1, odd + ' did not render a screen');
+  }
+  await page.goto(BASE + '#/plan'); await page.locator('.plan h1').waitFor();
+  await page.locator('a.skip').focus();
+  await page.keyboard.press('Enter');
+  expect(page.url().endsWith('#/plan'), 'the skip link changed the address to ' + page.url());
+  expect(await page.locator('.plan h1').isVisible() && (await page.evaluate(() => document.activeElement.id)) === 'main', 'the skip link did not move to the content');
 });
 
 await test('daytime exam: says "today", keeps the last minutes free, and does not talk about bedtime', withOpts({ at: '2026-10-04T08:00:00' }, async ({ page }) => {

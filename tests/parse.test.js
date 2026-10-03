@@ -195,3 +195,7 @@ test('a photo of a school circular: the name of the school and the note at the b
   assert.equal(tidyOcr('History\nPower Sharing\nFederalism').split('\n').length, 3);
 });
 
+test('a length word that is not a length is not read as one', () => {
+  assert.deepEqual(parseSyllabus('Light | constructor\nSound | 5 | toString\nHeat | 4 | L'), [{ name: 'Light' }, { name: 'Sound', marks: 5 }, { name: 'Heat', marks: 4, size: 'L' }]);
+});
+
