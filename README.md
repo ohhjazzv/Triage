@@ -61,7 +61,7 @@ mastery after t minutes = 0.95 − (0.95 − mastery now) × e^(−t / tau)
 
 `tau` is 30, 60 or 90 minutes for a short, medium or long chapter. Blank, Bits, Most and Easy start a chapter at 5%, 30%, 60% and 85% of its marks.
 
-Then it hands out your time one block at a time, always to the chapter where that block earns the most marks. It stops when the blocks run out, or when the best next block is worth less than 1% of the paper. Chapters that got no blocks are the "Not tonight" list.
+Then it hands out your time one block at a time, always to the chapter where that block earns the most marks. It stops when the blocks run out, or when the best next block is worth less than 0.5% of the paper (half a mark in a hundred). That stop rule is never allowed to leave you with nothing to do. Chapters that got no blocks are the "Not tonight" list.
 
 All of it is in [`js/engine.js`](js/engine.js), about 300 lines with comments.
 
@@ -105,9 +105,18 @@ This section is in the app too (the "How sure?" screen).
 
 **What is not proven.** These are simulations inside the app's own model. They show the method is sound if learning has diminishing returns. They do not show that real students gain real marks. Only use over time can show that. This is why every forecast is a range labelled as an estimate, why the closed-book check corrects the plan as you go, and why the app compares its forecast with your real marks afterwards.
 
+## Bugs found in the last review (4 October)
+
+The day before submitting, Jaz asked for the app to be tested in every way it could lose. The review was run by Claude: odd inputs, hostile class links, eight time zones, and a read-through of the code. It found real bugs. The worst one:
+
+- **The stop rule was too eager.** It stopped the plan when the next block added less than 1% of the paper. With a long syllabus every block is a small share of the paper, so a student with 35 chapters and all of them "Blank" was told "You are done" before starting, and "book order" could show a higher forecast than the plan. The rule is now 0.5%, it can never leave an empty plan, and book order is given the same study time as the plan. There are tests for all three.
+
+Others: the skip-to-content link jumped to the start page; a class link stopped working after a refresh; the end-of-block sound would not have played in Safari; a sample exam left overnight greeted a returning visitor with "after the exam"; a very long chapter name widened the page on a small phone.
+
 ## Limits
 
 - The forecast depends on honest answers and on guessed study speeds. It is an estimate, not a promise.
+- It has been tested in one browser engine only (Chromium, the engine in Chrome and Edge), across eight time zones and screen widths from 320 to 2560 px. It has not been run in Safari or Firefox. The code avoids features those browsers lack, but that is a reading of the code, not a test.
 - Marks per chapter are often unknown. Without them the paper is split equally.
 - One exam is planned at a time. It does not yet balance several exams against each other across a week.
 - It plans time. It does not teach the chapter.
@@ -128,9 +137,9 @@ python3 -m http.server 8080     # or any static file server
 Tests (Node 22 or newer):
 
 ```
-npm test                 # 111 unit tests: engine, time, paste, photo clean-up, storage, model
+npm test                 # 116 unit tests: engine, time, paste, photo clean-up, storage, model
 node tests/robustness.js # the simulation table above
-node tests/e2e/run.mjs   # 36 browser tests, needs Playwright
+node tests/e2e/run.mjs   # 39 browser tests, needs Playwright
 ```
 
 The browser tests drive a real browser with a controlled clock: the start page, a full setup, a study block, the closed-book check, the sleep floor, a daytime exam, the class link, offline use, a browser that blocks storage, keyboard focus, reading seven test pictures (made by `tests/e2e/make-fixtures.mjs`), and a check that no request ever leaves the app's own origin, including while a photo is being read.
