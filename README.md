@@ -165,8 +165,8 @@ prototype/       the first engine sketch (2 October 2026), kept as written
 
 This project was built with heavy use of AI, and the hackathon rules ask for that to be stated plainly.
 
-- **Claude (Anthropic), in Cowork**, helped choose the idea, wrote the engine prototype, and wrote most of the code, the tests and the first drafts of these documents.
-- **Jaz** brought the problem from his own exam week, chose to enter solo, set the rule that sleep is never planned under 6 hours, asked for the weak spots of the idea to be closed, and reviewed the result.
+- **Claude (Anthropic), in Cowork**, proposed the idea when Jaz asked for one, using Jaz's own exam week as the problem. It wrote the engine, the rest of the code, the tests and these documents, and ran the review on 4 October.
+- **Jaz** asked for a project that could win and let Claude choose the idea. He chose to enter solo, set the rule that sleep is never planned under 6 hours, and asked for the weak spots of the idea to be closed, for a photo of the syllabus to work as input, for a start page, and for the final review. He set up the repository and published the site.
 - **Inside the app:** no AI makes the plan. One optional feature, reading a photo of the syllabus, uses Tesseract, an open-source text reader with a small trained neural network. It runs in the browser on the student's own device and sends nothing anywhere.
 
 Earlier work: the author's personal assistant "Taz OS" (1–2 October 2026) had a simple exam-eve list that led to this idea. `prototype/` holds the first sketch of the engine.
