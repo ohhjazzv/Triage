@@ -114,3 +114,25 @@ test('chapters without marks share the paper equally', () => {
   assert.deepEqual(pic.chapters.map((c) => c.marks), [20, 20, 20]);
   assert.equal(pic.unrated.length, 0);
 });
+
+test('book order is never shown above the plan: both get the same study time', () => {
+  // Bug found on 4 Oct: when the plan stopped early, book order was still given the whole evening.
+  const levels = ['blank', 'bits', 'most', 'easy'], sizes = ['S', 'M', 'L'];
+  let seed = 11; const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  for (let t = 0; t < 300; t++) {
+    const n = 1 + Math.floor(rnd() * 40);
+    const exam = cleanExam({
+      name: 'x', at: '2026-10-05T08:00', total: 20 + Math.floor(rnd() * 180), wake: '06:00', sleepHours: 8,
+      sessions: [{ day: '2026-10-04', start: `${String(8 + Math.floor(rnd() * 12)).padStart(2, '0')}:00`, end: null }],
+      chapters: Array.from({ length: n }, (_, i) => ({ name: 'C' + i, know: levels[Math.floor(rnd() * 4)], size: sizes[Math.floor(rnd() * 3)], ...(rnd() < 0.5 ? { marks: 1 + Math.floor(rnd() * 12) } : {}) })),
+    });
+    const pic = picture(exam, atDay('2026-10-04', toMinutes('08:00')));
+    const f = pic.forecasts;
+    assert.ok(f.book.mid <= f.withPlan.mid + 1e-9, `run ${t}: book ${f.book.mid} above plan ${f.withPlan.mid}`);
+    assert.ok(f.stopNow.mid <= f.book.mid + 1e-9 && f.withPlan.mid <= pic.p.total + 1e-9);
+    for (const x of [f.stopNow, f.book, f.withPlan]) assert.ok(Number.isFinite(x.mid) && Number.isFinite(x.low) && Number.isFinite(x.high) && x.low <= x.mid + 1e-9 && x.mid <= x.high + 1e-9);
+    for (const r of pic.sq.rows) assert.ok(r.have >= 0 && r.win >= 0 && r.later >= 0 && r.have + r.win + r.later === r.n, `run ${t}: the squares of ${r.name} add up`);
+    if (pic.blocks > 0 && pic.p.after < pic.p.total * 0.94) assert.ok(pic.p.blocksUsed > 0, `run ${t}: time available but nothing planned`);
+  }
+});
+

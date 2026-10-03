@@ -117,3 +117,13 @@ test('export and import', () => {
   assert.deepEqual(importJson(exportJson(s)), s);
   assert.equal(importJson('nope'), null); assert.equal(importJson('{"exams":[]}'), null);
 });
+
+test('a date that is not a date, and answers that are not answers, are thrown away', () => {
+  const base = { name: 'x', total: 50, chapters: [{ name: 'A', know: 'constructor', size: 'toString' }, { name: 'B', know: '__proto__', size: 'L' }] };
+  for (const at of [1e12, {}, [], 'soon', '2026-13-45T99:99', '2026-10-05', true]) assert.equal(cleanExam({ ...base, at }).at, null, String(at));
+  assert.equal(cleanExam({ ...base, at: '2026-10-05T08:00:00.000Z' }).at, '2026-10-05T08:00');
+  const e = cleanExam(base);
+  assert.deepEqual(e.chapters.map((c) => [c.know, c.size]), [[null, 'M'], [null, 'L']]);
+  assert.equal(e.enoughPct, 0.5);
+});
+

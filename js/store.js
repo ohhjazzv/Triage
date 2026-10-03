@@ -1,7 +1,7 @@
 // Saving, loading, and the class link. Everything stays in this browser.
 // Nothing in this file talks to a network.
 
-import { KNOW, TAU, CEIL } from './engine.js';
+import { KNOW, TAU, CEIL, ENOUGH_PCT } from './engine.js';
 import { clampSleep, toMinutes } from './time.js';
 
 export const KEY = 'triage-v1';
@@ -49,7 +49,8 @@ export function cleanExam(e) {
   if (!chapters.length) return null;
   const ids = new Set();
   for (const c of chapters) { while (ids.has(c.id)) c.id = newId(); ids.add(c.id); }
-  const at = e.at && !isNaN(new Date(e.at)) ? String(e.at).slice(0, 16) : null;
+  const when = typeof e.at === 'string' ? e.at.slice(0, 16) : '';
+  const at = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(when) && !isNaN(new Date(when)) ? when : null;
   return {
     id: str(e.id, 16) || newId(),
     name: str(e.name, 60) || 'My exam',
@@ -60,7 +61,7 @@ export function cleanExam(e) {
     sleepHours: clampSleep(e.sleepHours),
     sessions: (Array.isArray(e.sessions) ? e.sessions : []).map(cleanSession).filter(Boolean).slice(0, 30),
     morningMin: num(e.morningMin, 0, 240, 20),
-    enoughPct: num(e.enoughPct, 0, 5, 1),
+    enoughPct: num(e.enoughPct, 0, 5, ENOUGH_PCT),
     keepGoing: !!e.keepGoing,                        // the student chose to pass the Enough line
     current: e.current && typeof e.current === 'object' && e.current.chapterId && !isNaN(new Date(e.current.startedAt))
       ? { chapterId: String(e.current.chapterId), startedAt: String(e.current.startedAt), minutes: num(e.current.minutes, 1, 120, 25) }

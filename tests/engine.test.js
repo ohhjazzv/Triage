@@ -102,14 +102,40 @@ test('more time never lowers the forecast', () => {
 });
 
 test('the Enough line stops the plan and says why', () => {
-  const all = plan(bio, 24, { enoughPct: 0 });
-  assert.equal(all.blocksUsed, 24); assert.equal(all.stop, 'time');
-  const p = plan(bio, 24);                                  // default: 1% of 50 marks = 0.5
+  const all = plan(bio, 40, { enoughPct: 0 });
+  assert.equal(all.blocksUsed, 40); assert.equal(all.stop, 'time');
+  const p = plan(bio, 40);                                  // default: 0.5% of 50 marks = 0.25
+  assert.equal(p.enough, 0.25);
   assert.equal(p.stop, 'enough');
-  assert.equal(p.blocksUsed, 19);
-  assert.equal(p.blocksSpare, 5);
-  assert.ok(p.next.gain < 0.5 && p.next.gain > 0);
-  assert.ok(p.steps.every((s) => s.gain >= 0.5));
+  assert.equal(p.blocksUsed, 34);
+  assert.equal(p.blocksSpare, 6);
+  assert.ok(p.next.gain < 0.25 && p.next.gain > 0);
+  assert.ok(p.steps.every((s) => s.gain >= 0.25));
+  assert.equal(plan(bio, 24).stop, 'time');                 // an ordinary evening is never cut short
+});
+
+test('a long syllabus is never told "you are done" before it has started', () => {
+  const equal = (n, total, know) => Array.from({ length: n }, (_, i) => ({ id: 'c' + i, name: 'C' + i, marks: total / n, know, size: 'M' }));
+  // With many chapters every block is a small share of the paper. The plan must still use the time.
+  for (const [n, know] of [[12, 'most'], [12, 'bits'], [20, 'most'], [25, 'bits'], [35, 'blank'], [60, 'most'], [60, 'bits'], [60, 'easy']]) {
+    const p = plan(equal(n, 100, know), 8);
+    assert.equal(p.blocksUsed, 8, `${n} chapters, all ${know}`);
+    assert.ok(p.after > p.before, `${n} chapters, all ${know}: the plan gains something`);
+  }
+  // One weak chapter among many strong ones: it gets its blocks, and the plan may then stop.
+  const mixed = [{ id: 'weak', name: 'Weak', marks: 8, know: 'blank', size: 'M' }, ...equal(40, 92, 'easy')];
+  const p = plan(mixed, 8);
+  assert.ok(p.split.weak >= 2 && p.blocksUsed >= p.split.weak);
+  // Whatever the Enough line is set to, a plan with time and something to gain is never empty.
+  for (const pct of [0.5, 1, 5]) assert.ok(plan(equal(30, 100, 'most'), 6, { enoughPct: pct }).blocksUsed > 0);
+  // Nothing to gain at all is different: then there really is nothing to do.
+  assert.equal(plan(equal(3, 30, 'easy').map((c) => ({ ...c, m: CEIL })), 6).blocksUsed, 0);
+});
+
+test('a made-up answer or length is not mistaken for a real one', () => {
+  assert.equal(KNOW.constructor, undefined); assert.equal(TAU.toString, undefined);
+  const p = plan([{ id: 'a', name: 'A', marks: 10, know: 'constructor', size: '__proto__' }], 2);
+  assert.ok(Number.isFinite(p.after) && Number.isFinite(p.before));
 });
 
 test('pins are respected and their price is visible', () => {

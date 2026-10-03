@@ -16,14 +16,15 @@
 export const CEIL = 0.95;      // nobody gets 100% of a chapter from one night of study
 export const BLOCK = 25;       // minutes in one study block
 export const BREAK = 5;        // minutes after each block (the closed-book check happens here)
-export const ENOUGH_PCT = 1;   // stop when the next block adds less than this % of the paper
+export const ENOUGH_PCT = 0.5; // stop when the next block adds less than this % of the paper (half a mark in a hundred)
 
 // "If a question from this chapter came right now?"
-export const KNOW = { blank: 0.05, bits: 0.30, most: 0.60, easy: 0.85 };
+// (These two tables have no inherited keys, so a made-up answer such as "constructor" is simply not found.)
+export const KNOW = Object.assign(Object.create(null), { blank: 0.05, bits: 0.30, most: 0.60, easy: 0.85 });
 export const KNOW_ORDER = ['blank', 'bits', 'most', 'easy'];
 
 // How long the chapter is: Small, Medium, Large.
-export const TAU = { S: 30, M: 60, L: 90 };
+export const TAU = Object.assign(Object.create(null), { S: 30, M: 60, L: 90 });
 
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 const sum = (list, f) => list.reduce((a, x, i) => a + f(x, i), 0);
@@ -142,6 +143,12 @@ export function plan(chapters, blocks, opts = {}) {
       left: r.w * Math.max(0, CEIL - r.m0),           // marks still on the table in this chapter
       trade: !r.drop && weakest ? { id: weakest.id, name: nameOf(weakest.id), gain: weakest.gain } : null };
   });
+
+  // The Enough line never leaves someone who has time with nothing to do. With many small chapters
+  // every block is a small share of the paper; a plan of zero blocks would be useless advice.
+  if (stop === 'enough' && steps.length === 0 && given > 0 && (opts.enoughPct ?? ENOUGH_PCT) > 0) {
+    return plan(chapters, blocks, { ...opts, enoughPct: 0 });
+  }
 
   const split = {};
   for (const r of rows) split[r.id] = r.blocks;

@@ -46,10 +46,13 @@ export function picture(exam, now) {
   // Three forecasts, each with a rough range.
   const none = {};
   const stopNow = { mid: p.before, ...range(chapters, none) };
+  // Book order gets the same study time as the plan, so the two are compared like for like.
+  // (When the plan stops early at the Enough line, book order stops at the same minute.)
+  const bookMinutes = p.stop === 'enough' ? p.blocksUsed * BLOCK : studyMinutes;
   const book = {
-    mid: bookOrder(chapters, studyMinutes),
-    low: bookOrder(shifted(chapters, -0.15, 1.3), studyMinutes),
-    high: bookOrder(shifted(chapters, 0.05, 0.85), studyMinutes),
+    mid: bookOrder(chapters, bookMinutes),
+    low: bookOrder(shifted(chapters, -0.15, 1.3), bookMinutes),
+    high: bookOrder(shifted(chapters, 0.05, 0.85), bookMinutes),
   };
   const withPlan = { mid: p.after, ...range(chapters, p.split) };
 
@@ -61,7 +64,8 @@ export function picture(exam, now) {
 
   const examAt = exam.at ? new Date(exam.at) : null;
   const wall = wins.length ? wins[0].wall : null;
-  const lastSlot = tl.length ? tl[tl.length - 1].slots.at(-1) : null;
+  const lastSlots = tl.length ? tl[tl.length - 1].slots : [];
+  const lastSlot = lastSlots.length ? lastSlots[lastSlots.length - 1] : null;      // (not .at(-1): older iPhones lack it)
 
   return {
     exam, now, chapters, cur, wins, blocks, studyMinutes, p, tl, when, words: WORDS[when],
